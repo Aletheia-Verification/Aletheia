@@ -41,10 +41,6 @@ ws_rate_discount = Decimal('0.0000')
 
 def para_0000_main_process():
     """COBOL Paragraph: 0000-MAIN-PROCESS"""
-    global ws_principal_bal, ws_annual_rate, ws_days_in_year, ws_days_overdue
-    global ws_grace_period, ws_penalty_rate, ws_max_penalty_pct, ws_rate_discount
-    global ws_vip_flag, ws_daily_rate, ws_daily_interest, ws_penalty_amount
-    
     para_1000_init_calculation()
     para_2000_compute_daily_rate()
     para_3000_apply_vip_discount()
@@ -56,9 +52,7 @@ def para_1000_init_calculation():
     """COBOL Paragraph: 1000-INIT-CALCULATION"""
     global ws_rate_discount, ws_vip_flag
     
-    if ws_vip_flag == "Y":
-        ws_rate_discount = Decimal('0.0015')
-    else:
+    if ws_vip_flag != "Y":
         ws_rate_discount = Decimal('0')
 
 def para_2000_compute_daily_rate():
@@ -81,7 +75,6 @@ def para_4000_calculate_interest():
     global ws_temp_amount, ws_daily_interest, ws_principal_bal, ws_daily_rate
     
     ws_temp_amount = ws_principal_bal * ws_daily_rate
-    # FUNCTION INTEGER = truncation
     ws_daily_interest = Decimal(int(ws_temp_amount * Decimal('100'))) / Decimal('100')
 
 def para_5000_check_late_penalty():
