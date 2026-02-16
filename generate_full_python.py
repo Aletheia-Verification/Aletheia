@@ -1,5 +1,6 @@
 import re
 from cobol_analyzer_api import analyze_cobol
+from parse_conditions import parse_if_statement
 
 def to_python_name(name):
     """WS-DAILY-RATE -> ws_daily_rate"""
@@ -172,12 +173,20 @@ def generate_python_module(cobol_source):
     lines.append("# " + "=" * 60)
     lines.append("")
     
-    computes_by_para = {}
+    # Collect all statements by paragraph
+    stmts_by_para = {}
+    
     for c in analysis["computes"]:
         para = c["paragraph"]
-        if para not in computes_by_para:
-            computes_by_para[para] = []
-        computes_by_para[para].append(c["statement"])
+        if para not in stmts_by_para:
+            stmts_by_para[para] = []
+        stmts_by_para[para].append(("compute", c["statement"]))
+    
+    for c in analysis["conditions"]:
+        para = c["paragraph"]
+        if para not in stmts_by_para:
+            stmts_by_para[para] = []
+        stmts_by_para[para].append(("condition", c["statement"]))
     
     global_vars = ", ".join(sorted([v["python_name"] for v in var_info.values()]))
     
@@ -188,13 +197,19 @@ def generate_python_module(cobol_source):
         lines.append(f"    global {global_vars}")
         lines.append("")
         
-        if para in computes_by_para:
-            for stmt in computes_by_para[para]:
-                py_stmt = parse_compute(stmt, known_vars)
-                if py_stmt:
-                    lines.append(f"    {py_stmt}")
+        if para in stmts_by_para:
+            for stmt_type, stmt in stmts_by_para[para]:
+                if stmt_type == "compute":
+                    py_stmt = parse_compute(stmt, known_vars)
+                    if py_stmt:
+                        lines.append(f"    {py_stmt}")
+                elif stmt_type == "condition":
+                    py_stmt = parse_if_statement(stmt, known_vars)
+                    if py_stmt:
+                        for line in py_stmt.split("\n"):
+                            lines.append(f"    {line}")
         else:
-            lines.append("    pass  # No COMPUTE statements")
+            lines.append("    pass  # No statements")
         
         lines.append("")
     

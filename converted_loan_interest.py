@@ -43,13 +43,14 @@ def para_0000_main_process():
     """COBOL Paragraph: 0000-MAIN-PROCESS"""
     global ws_account_data, ws_account_flags, ws_account_num, ws_accrued_int, ws_annual_rate, ws_calc_fields, ws_compound_factor, ws_daily_interest, ws_daily_rate, ws_days_in_year, ws_days_overdue, ws_grace_period, ws_max_penalty_pct, ws_penalty_amount, ws_penalty_data, ws_penalty_rate, ws_principal_bal, ws_rate_discount, ws_temp_amount, ws_vip_flag
 
-    pass  # No COMPUTE statements
+    pass  # No statements
 
 def para_1000_init_calculation():
     """COBOL Paragraph: 1000-INIT-CALCULATION"""
     global ws_account_data, ws_account_flags, ws_account_num, ws_accrued_int, ws_annual_rate, ws_calc_fields, ws_compound_factor, ws_daily_interest, ws_daily_rate, ws_days_in_year, ws_days_overdue, ws_grace_period, ws_max_penalty_pct, ws_penalty_amount, ws_penalty_data, ws_penalty_rate, ws_principal_bal, ws_rate_discount, ws_temp_amount, ws_vip_flag
 
-    pass  # No COMPUTE statements
+    if ws_vip_flag == "Y":
+        ws_rate_discountelsemove0tows_rate_discount = Decimal('0.0015')
 
 def para_2000_compute_daily_rate():
     """COBOL Paragraph: 2000-COMPUTE-DAILY-RATE"""
@@ -62,6 +63,10 @@ def para_3000_apply_vip_discount():
     global ws_account_data, ws_account_flags, ws_account_num, ws_accrued_int, ws_annual_rate, ws_calc_fields, ws_compound_factor, ws_daily_interest, ws_daily_rate, ws_days_in_year, ws_days_overdue, ws_grace_period, ws_max_penalty_pct, ws_penalty_amount, ws_penalty_data, ws_penalty_rate, ws_principal_bal, ws_rate_discount, ws_temp_amount, ws_vip_flag
 
     ws_daily_rate = ws_daily_rate - ws_rate_discount
+    # TODO: Complex IF - needs manual review
+    # IFIS-VIP-ACCOUNTCOMPUTEWS-DAILY-RATE=WS-DAILY-RATE-WS-RATE-D...
+    if ws_daily_rate < 0:
+        ws_daily_rate = Decimal('0')
 
 def para_4000_calculate_interest():
     """COBOL Paragraph: 4000-CALCULATE-INTEREST"""
@@ -77,12 +82,18 @@ def para_5000_check_late_penalty():
     ws_penalty_amount = ws_principal_bal * ws_penalty_rate * (ws_days_overdue - ws_grace_period)
     ws_temp_amount = ws_principal_bal * ws_max_penalty_pct
     ws_penalty_amount = ws_penalty_amount * Decimal('0.5')
+    # TODO: Complex IF - needs manual review
+    # IFWS-DAYS-OVERDUE>WS-GRACE-PERIODCOMPUTEWS-PENALTY-AMOUNT=WS...
+    if ws_penalty_amount > ws_temp_amount:
+        ws_penalty_amount = ws_temp_amount
+    if ws_vip_flag == "Y":
+        ws_penalty_amount = ws_penalty_amount*Decimal('0.5')
 
 def para_6000_finalize_amount():
     """COBOL Paragraph: 6000-FINALIZE-AMOUNT"""
     global ws_account_data, ws_account_flags, ws_account_num, ws_accrued_int, ws_annual_rate, ws_calc_fields, ws_compound_factor, ws_daily_interest, ws_daily_rate, ws_days_in_year, ws_days_overdue, ws_grace_period, ws_max_penalty_pct, ws_penalty_amount, ws_penalty_data, ws_penalty_rate, ws_principal_bal, ws_rate_discount, ws_temp_amount, ws_vip_flag
 
-    pass  # No COMPUTE statements
+    pass  # No statements
 
 # ============================================================
 # MAIN EXECUTION
@@ -98,24 +109,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # Set test values
-    ws_principal_bal = Decimal('50000.00')
-    ws_annual_rate = Decimal('0.065000')  # 6.5%
-    ws_days_in_year = Decimal('365')
-    ws_days_overdue = Decimal('45')
-    ws_grace_period = Decimal('15')
-    ws_penalty_rate = Decimal('0.0010')
-    ws_max_penalty_pct = Decimal('0.05')
-    ws_rate_discount = Decimal('0.0015')  # VIP discount
-    
-    # Run
     main()
-    
-    # Print results
-    print("=== CALCULATION RESULTS ===")
-    print(f"Principal Balance:  ${ws_principal_bal}")
-    print(f"Annual Rate:        {ws_annual_rate}")
-    print(f"Daily Rate:         {ws_daily_rate}")
-    print(f"Daily Interest:     ${ws_daily_interest}")
-    print(f"Days Overdue:       {ws_days_overdue}")
-    print(f"Penalty Amount:     ${ws_penalty_amount}")
