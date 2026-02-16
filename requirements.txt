@@ -1,0 +1,18 @@
+fastapi
+uvicorn
+pydantic
+openai
+python-multipart
+python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+
+# Database
+sqlalchemy[asyncio]==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+aiosqlite==0.19.0
+greenlet==3.0.3
+
+# Email
+aiosmtplib==2.0.2

@@ -1,0 +1,104 @@
+{
+  "TEST_USER_1769942612": {
+    "password_hash": "$pbkdf2-sha256$29000$szbm/N.b0xqjFIKQUkpJKQ$7MVvS248QfsLDmyRU/7.SXta/A5y/2tsC.q5EHue8D8",
+    "created_at": "2026-02-01T10:43:34.258607+00:00",
+    "is_active": true,
+    "is_approved": true
+  },
+  "67676767": {
+    "password_hash": "$pbkdf2-sha256$29000$SMk5Z4wxBqA0RqgVQkgphQ$Xu0oM2G.TPwqop26MBRab5iQdQ2Dk67wPkZuy1VJ3DE",
+    "created_at": "2026-02-01T10:45:09.802043+00:00",
+    "is_active": true,
+    "is_approved": false
+  },
+  "TEST_USER_1769942816": {
+    "password_hash": "$pbkdf2-sha256$29000$3HuvFaI0prQ2RogxZqwVwg$QXX/lUmX4f/rMd7lDW0boKqrvfhOEC3m8iXS.9Zwep8",
+    "created_at": "2026-02-01T10:46:58.887631+00:00",
+    "is_active": true,
+    "is_approved": true
+  },
+  "69696969": {
+    "password_hash": "$pbkdf2-sha256$29000$M8a4FyKkVGothfBea601pg$k2dv6klFjEW/oQ8gcOt558PbqNnnT0HYdVNIfTH5J.U",
+    "created_at": "2026-02-01T10:47:50.975691+00:00",
+    "is_active": true,
+    "is_approved": false
+  },
+  "TEST_USER_1769943376": {
+    "password_hash": "$pbkdf2-sha256$29000$3ztnrJXSmhOi1HovRYiREg$FSQCrlfFAk4MwGKVx6Oo5HNZBd/xjPRXdRCyI1wF41Q",
+    "created_at": "2026-02-01T10:56:18.164772+00:00",
+    "is_active": true,
+    "is_approved": true
+  },
+  "65656565": {
+    "password_hash": "$pbkdf2-sha256$29000$eU.pVSrlXAtBCMG4N2ZMSQ$b8MqzcTJ.EKAOaV0q6nSkWlkX4ST40IeNrh5n5YuDWI",
+    "created_at": "2026-02-01T10:58:02.153892+00:00",
+    "is_active": true,
+    "is_approved": true
+  },
+  "ARCHITECT_1769945975": {
+    "password_hash": "$pbkdf2-sha256$29000$8v7fm9N677231tr7X4tx7g$GhVtCh1XUVVqbQAyIIKrO4C841Qs7vJ7wMldcHJP0T0",
+    "created_at": "2026-02-01T11:39:37.948476+00:00",
+    "is_active": true,
+    "is_approved": true,
+    "institution": "Standard Banking Group",
+    "city": "London",
+    "country": "UK",
+    "role": "Lead Architect",
+    "security_history": [
+      {
+        "timestamp": "2026-02-01T11:39:37.948476+00:00",
+        "event": "Account Registration",
+        "ip": "127.0.0.1"
+      },
+      {
+        "timestamp": "2026-02-01T11:39:45.478071+00:00",
+        "event": "Secure Session Established",
+        "ip": "127.0.0.1"
+      }
+    ]
+  },
+  "00000": {
+    "password_hash": "$pbkdf2-sha256$29000$pXTuPadUKoWwVur9H.Nc6w$N7Ivj3SnP9Ni29e3HypKpD2Hs0PC4xnzvtI1Ln73okM",
+    "created_at": "2026-02-01T13:42:34.497770+00:00",
+    "is_active": true,
+    "is_approved": true,
+    "institution": "Hector Gras Olmos",
+    "city": "Alicante",
+    "country": "Spain",
+    "role": "Bank cto",
+    "security_history": [
+      {
+        "timestamp": "2026-02-01T13:42:34.497770+00:00",
+        "event": "Account Registration",
+        "ip": "127.0.0.1"
+      },
+      {
+        "timestamp": "2026-02-01T13:43:09.198373+00:00",
+        "event": "Secure Session Established",
+        "ip": "127.0.0.1"
+      }
+    ]
+  },
+  "TESTER_ANALYZE": {
+    "password_hash": "$pbkdf2-sha256$29000$BgCgNIYwhrC2dm5NKWVM6Q$oSNbo5fbcGjMcxeYWxBJwVvl7P7auqHqPsYgVSdBWnM",
+    "created_at": "2026-02-01T13:48:39.711661+00:00",
+    "is_active": true,
+    "is_approved": true,
+    "institution": "QA Lab",
+    "city": "Berlin",
+    "country": "Germany",
+    "role": "QA Engineer",
+    "security_history": [
+      {
+        "timestamp": "2026-02-01T13:48:39.711661+00:00",
+        "event": "Account Registration",
+        "ip": "127.0.0.1"
+      },
+      {
+        "timestamp": "2026-02-01T13:48:45.052277+00:00",
+        "event": "Secure Session Established",
+        "ip": "127.0.0.1"
+      }
+    ]
+  }
+}
