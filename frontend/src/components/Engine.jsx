@@ -8,7 +8,6 @@ import {
     ChevronRight,
     ChevronDown,
     Cpu,
-    BrainCircuit,
     ShieldCheck,
     Check,
     CloudUpload,
@@ -16,7 +15,12 @@ import {
     AlertTriangle,
     CheckCircle,
     XCircle,
-    Clock
+    Hash,
+    GitBranch,
+    FileCode,
+    ArrowRight,
+    RefreshCw,
+    Eye
 } from 'lucide-react';
 import ExplanationChat from './ExplanationChat';
 import { apiUrl } from '../config/api';
@@ -25,53 +29,31 @@ import { generateForensicPDF } from '../utils/pdfExport';
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_PASTE_CHARS = 500000;
 
-// ── Audit Confidence Badge ──────────────────────────────────────────
-const AuditBadge = ({ audit }) => {
-    if (!audit) return null;
-    const cfg = {
-        VERIFIED: { color: 'text-green-400 bg-green-500/10 border-green-500/30', Icon: CheckCircle },
-        PROBABLE: { color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', Icon: ShieldCheck },
-        UNCERTAIN: { color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30', Icon: AlertTriangle },
-        UNRELIABLE: { color: 'text-red-400 bg-red-500/10 border-red-500/30', Icon: XCircle },
-    };
-    const { color, Icon } = cfg[audit.level] || cfg.UNCERTAIN;
-    return (
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 border text-[10px] font-mono uppercase tracking-widest ${color}`}>
-            <Icon size={14} />
-            <span>{audit.level}</span>
-            <span className="opacity-60">({audit.confidence})</span>
-        </div>
-    );
-};
-
-// ── Audit Pipeline Stage (expandable) ───────────────────────────────
-const AuditStage = ({ number, name, stage, isExpanded, onToggle }) => {
-    if (!stage) return null;
-    const passed = stage.success !== false;
+// ── Collapsible Section ─────────────────────────────────────────────
+const Section = ({ title, icon: Icon, count, children, defaultOpen = false, badge }) => {
+    const [open, setOpen] = useState(defaultOpen);
     return (
         <div className="border border-border/50 overflow-hidden">
             <button
-                onClick={onToggle}
-                className="w-full flex items-center gap-3 px-4 py-3 bg-surface/30 hover:bg-surface/50 transition-colors text-left"
+                onClick={() => setOpen(!open)}
+                className="w-full flex items-center gap-3 px-5 py-3 bg-surface/30 hover:bg-surface/50 transition-colors text-left"
             >
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${passed ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
-                    {passed ? '\u2713' : '\u2717'}
-                </span>
+                <Icon size={14} className="text-primary shrink-0" />
                 <span className="flex-1 text-[11px] font-mono uppercase tracking-wider text-text">
-                    Stage {number}: {name}
+                    {title}
                 </span>
-                {stage.confidence && (
-                    <span className="text-[10px] font-mono text-primary">{stage.confidence}</span>
-                )}
-                {stage.execution_time_ms && (
-                    <span className="text-[9px] font-mono text-text-dim flex items-center gap-1">
-                        <Clock size={10} /> {stage.execution_time_ms}ms
+                {badge && (
+                    <span className="text-[9px] font-mono uppercase px-2 py-0.5 border border-amber-500/30 text-amber-400 bg-amber-500/10">
+                        {badge}
                     </span>
                 )}
-                <ChevronDown size={14} className={`text-text-dim transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                {count !== undefined && (
+                    <span className="text-[10px] font-mono text-primary">{count}</span>
+                )}
+                <ChevronDown size={14} className={`text-text-dim transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
             <AnimatePresence>
-                {isExpanded && (
+                {open && (
                     <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
@@ -79,68 +61,8 @@ const AuditStage = ({ number, name, stage, isExpanded, onToggle }) => {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                     >
-                        <div className="px-4 py-3 border-t border-border/30 space-y-2">
-                            {stage.findings && stage.findings.length > 0 && stage.findings.map((finding, i) => (
-                                <div key={i} className="text-xs text-text-dim leading-relaxed bg-background/50 rounded p-3 border border-border/20">
-                                    {finding.executive_summary && <p className="text-text mb-2">{finding.executive_summary}</p>}
-                                    {finding.findings && finding.findings.map((f, j) => (
-                                        <div key={j} className="mt-2 pl-3 border-l-2 border-primary/30">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                {f.severity && <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded ${f.severity === 'CRITICAL' || f.severity === 'HIGH' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>{f.severity}</span>}
-                                                {f.location && <span className="text-[9px] font-mono text-text-dim">{f.location}</span>}
-                                            </div>
-                                            {f.cobol_behavior && <p className="text-[11px]"><span className="text-text-dim">COBOL:</span> {f.cobol_behavior}</p>}
-                                            {f.python_behavior && <p className="text-[11px]"><span className="text-text-dim">Python:</span> {f.python_behavior}</p>}
-                                            {f.fix && <p className="text-[11px] text-primary/80"><span className="text-text-dim">Fix:</span> {f.fix}</p>}
-                                        </div>
-                                    ))}
-                                    {finding.verified_findings && finding.verified_findings.map((vf, j) => (
-                                        <div key={j} className="mt-2 pl-3 border-l-2 border-green-500/30">
-                                            <span className="text-[9px] font-mono text-green-400 uppercase">Verified</span>
-                                            <p className="text-[11px] text-text">{vf.original_finding || vf.description}</p>
-                                        </div>
-                                    ))}
-                                    {finding.missed_issues && finding.missed_issues.map((mi, j) => (
-                                        <div key={j} className="mt-2 pl-3 border-l-2 border-red-500/30">
-                                            <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-red-500/15 text-red-400`}>{mi.severity || 'ISSUE'}</span>
-                                            <p className="text-[11px] text-text mt-1">{mi.description}</p>
-                                        </div>
-                                    ))}
-                                    {finding.base_confidence && (
-                                        <div className="mt-2 space-y-1">
-                                            <div className="flex justify-between text-[11px]"><span className="text-text-dim">Base Confidence</span><span className="text-text">{finding.base_confidence}</span></div>
-                                            {finding.missed_penalty && parseFloat(finding.missed_penalty) > 0 && (
-                                                <div className="flex justify-between text-[11px]"><span className="text-text-dim">Missed Issues Penalty</span><span className="text-red-400">-{finding.missed_penalty}</span></div>
-                                            )}
-                                            {finding.incorrect_penalty && parseFloat(finding.incorrect_penalty) > 0 && (
-                                                <div className="flex justify-between text-[11px]"><span className="text-text-dim">Incorrect Findings Penalty</span><span className="text-red-400">-{finding.incorrect_penalty}</span></div>
-                                            )}
-                                            <div className="flex justify-between text-[11px] font-bold border-t border-border/30 pt-1"><span className="text-text">Final Confidence</span><span className="text-primary">{finding.final_confidence}</span></div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                            {stage.warnings && stage.warnings.length > 0 && (
-                                <div className="space-y-1">
-                                    {stage.warnings.map((w, i) => (
-                                        <p key={i} className="text-[11px] text-amber-400/80 flex items-start gap-2">
-                                            <AlertTriangle size={12} className="mt-0.5 shrink-0" /> {w}
-                                        </p>
-                                    ))}
-                                </div>
-                            )}
-                            {stage.errors && stage.errors.length > 0 && (
-                                <div className="space-y-1">
-                                    {stage.errors.map((e, i) => (
-                                        <p key={i} className="text-[11px] text-red-400/80 flex items-start gap-2">
-                                            <XCircle size={12} className="mt-0.5 shrink-0" /> {e}
-                                        </p>
-                                    ))}
-                                </div>
-                            )}
-                            {(!stage.findings || stage.findings.length === 0) && (!stage.warnings || stage.warnings.length === 0) && (!stage.errors || stage.errors.length === 0) && (
-                                <p className="text-[11px] text-text-dim/50 italic">No detailed findings for this stage.</p>
-                            )}
+                        <div className="px-5 py-4 border-t border-border/30 space-y-2">
+                            {children}
                         </div>
                     </motion.div>
                 )}
@@ -149,94 +71,45 @@ const AuditStage = ({ number, name, stage, isExpanded, onToggle }) => {
     );
 };
 
-// ── Audit Results Panel ─────────────────────────────────────────────
-const AuditResultsPanel = ({ audit }) => {
-    const [expandedStage, setExpandedStage] = useState(null);
+// ── Stat Box ────────────────────────────────────────────────────────
+const StatBox = ({ label, value, warn }) => (
+    <div className={`flex-1 min-w-[100px] p-3 border ${warn ? 'border-amber-500/30 bg-amber-500/5' : 'border-border/30 bg-surface/20'}`}>
+        <div className={`text-lg font-mono font-bold ${warn ? 'text-amber-400' : 'text-text'}`}>{value}</div>
+        <div className="text-[9px] font-mono uppercase tracking-wider text-text-dim mt-1">{label}</div>
+    </div>
+);
 
-    if (!audit) return null;
-
-    const confidenceNum = parseFloat(audit.confidence) || 0;
-    const confidencePercent = Math.round(confidenceNum >= 1 ? confidenceNum : confidenceNum * 100);
-    const passed = audit.passed;
-
-    const ringColor = passed ? 'rgb(34, 197, 94)' : confidencePercent >= 70 ? 'rgb(245, 158, 11)' : 'rgb(239, 68, 68)';
-
+// ── Confidence Ring ─────────────────────────────────────────────────
+const ConfidenceRing = ({ value, label, size = 64 }) => {
+    const pct = Math.round(Number(value) || 0);
+    const color = pct >= 90 ? 'rgb(34,197,94)' : pct >= 70 ? 'rgb(245,158,11)' : 'rgb(239,68,68)';
     return (
-        <div className={`border overflow-hidden ${passed ? 'border-green-500/30' : 'border-amber-500/30'}`}>
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-surface/40 border-b border-border/30">
-                <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${passed ? 'bg-green-500/15' : 'bg-amber-500/15'}`}>
-                        {passed ? <CheckCircle size={20} className="text-green-400" /> : <AlertTriangle size={20} className="text-amber-400" />}
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-mono font-bold tracking-wider text-text uppercase">
-                            {passed ? 'Audit Passed' : 'Review Required'}
-                        </h3>
-                        <p className="text-[10px] text-text-dim">
-                            {passed ? 'Translation meets zero-error standards' : 'Translation needs verification before production use'}
-                        </p>
-                    </div>
-                </div>
-                {/* Confidence ring */}
-                <div className="text-center">
-                    <div className="relative w-16 h-16">
-                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
-                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none" stroke={ringColor} strokeWidth="3"
-                                strokeDasharray={`${confidencePercent}, 100`}
-                                strokeLinecap="round" />
-                        </svg>
-                        <span className="absolute inset-0 flex items-center justify-center text-sm font-mono font-bold text-text">
-                            {confidencePercent}%
-                        </span>
-                    </div>
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-text-dim">{audit.level}</span>
-                </div>
+        <div className="text-center">
+            <div className="relative" style={{ width: size, height: size }}>
+                <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none" stroke={color} strokeWidth="3"
+                        strokeDasharray={`${pct}, 100`}
+                        strokeLinecap="round" />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-mono font-bold text-text">
+                    {pct}%
+                </span>
             </div>
-
-            {/* Pipeline Stages */}
-            {audit.stages && (
-                <div className="px-6 py-4 space-y-2">
-                    <h4 className="text-[10px] font-mono uppercase tracking-widest text-text-dim mb-3">Verification Pipeline</h4>
-                    <AuditStage number={1} name="Initial Analysis" stage={audit.stages.stage_1}
-                        isExpanded={expandedStage === 1} onToggle={() => setExpandedStage(expandedStage === 1 ? null : 1)} />
-                    <AuditStage number={2} name="Adversarial Verification" stage={audit.stages.stage_2}
-                        isExpanded={expandedStage === 2} onToggle={() => setExpandedStage(expandedStage === 2 ? null : 2)} />
-                    <AuditStage number={3} name="Confidence Scoring" stage={audit.stages.stage_3}
-                        isExpanded={expandedStage === 3} onToggle={() => setExpandedStage(expandedStage === 3 ? null : 3)} />
-                </div>
-            )}
-
-            {/* Unresolved items */}
-            {audit.unresolved && audit.unresolved.length > 0 && (
-                <div className="px-6 py-4 border-t border-border/30 bg-amber-500/[0.03]">
-                    <h4 className="text-[10px] font-mono uppercase tracking-widest text-amber-400 mb-3">Requires Human Verification</h4>
-                    <div className="space-y-2">
-                        {audit.unresolved.map((item, i) => (
-                            <div key={i} className="bg-background/50 p-3 border border-border/20">
-                                {item.category && <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-surface text-text-dim">{item.category}</span>}
-                                {item.description && <p className="text-[11px] text-text mt-1">{item.description}</p>}
-                                {item.risk_if_wrong && <p className="text-[10px] text-red-400/70 mt-1">Risk: {item.risk_if_wrong}</p>}
-                                {item.recommended_action && <p className="text-[10px] text-primary/70 mt-1">Action: {item.recommended_action}</p>}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <span className="text-[9px] font-mono uppercase tracking-wider text-text-dim">{label}</span>
         </div>
     );
 };
 
-// ── Loading State with Pipeline Stages ──────────────────────────────
+// ── Loading State ───────────────────────────────────────────────────
 const AnalysisLoader = ({ stage }) => {
     const stages = [
-        { id: 'extracting', label: 'Extracting COBOL Logic', icon: Cpu },
-        { id: 'stage1', label: 'Stage 1: Initial Analysis', icon: BrainCircuit },
-        { id: 'stage2', label: 'Stage 2: Adversarial Verification', icon: ShieldCheck },
-        { id: 'stage3', label: 'Stage 3: Confidence Scoring', icon: CheckCircle },
+        { id: 'parsing', label: 'ANTLR4 Parsing', icon: Cpu },
+        { id: 'generating', label: 'Generating Python', icon: Code2 },
+        { id: 'verifying', label: 'GPT Verification', icon: ShieldCheck },
+        { id: 'finalizing', label: 'Building Report', icon: CheckCircle },
     ];
     const currentIndex = stages.findIndex(s => s.id === stage);
 
@@ -279,8 +152,9 @@ const AnalysisLoader = ({ stage }) => {
 const Engine = () => {
     const [inputMode, setInputMode] = useState('paste');
     const [cobolCode, setCobolCode] = useState('');
+    const [fileName, setFileName] = useState('source.cbl');
     const [isProcessing, setIsProcessing] = useState(false);
-    const [processingStage, setProcessingStage] = useState('extracting');
+    const [processingStage, setProcessingStage] = useState('parsing');
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
     const [copySuccess, setCopySuccess] = useState(false);
@@ -308,6 +182,7 @@ const Engine = () => {
         }
         const text = await file.text();
         setCobolCode(text);
+        setFileName(file.name || 'source.cbl');
         setInputMode('paste');
         setError(null);
     };
@@ -329,20 +204,30 @@ const Engine = () => {
         }
     };
 
+    // Group items by paragraph
+    const groupByParagraph = (items) => {
+        const groups = {};
+        for (const item of items) {
+            const key = item.paragraph || 'UNKNOWN';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(item);
+        }
+        return groups;
+    };
+
     const processLogic = async () => {
         if (!cobolCode.trim()) return;
         setIsProcessing(true);
         setError(null);
-        setProcessingStage('extracting');
+        setProcessingStage('parsing');
 
-        // Simulate stage progression for UX feedback
-        const stageTimer1 = setTimeout(() => setProcessingStage('stage1'), 3000);
-        const stageTimer2 = setTimeout(() => setProcessingStage('stage2'), 8000);
-        const stageTimer3 = setTimeout(() => setProcessingStage('stage3'), 14000);
+        const timer1 = setTimeout(() => setProcessingStage('generating'), 2000);
+        const timer2 = setTimeout(() => setProcessingStage('verifying'), 5000);
+        const timer3 = setTimeout(() => setProcessingStage('finalizing'), 12000);
 
         try {
             const token = localStorage.getItem('alethia_token');
-            const response = await fetch(apiUrl('/analyze'), {
+            const response = await fetch(apiUrl('/engine/analyze'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -350,7 +235,7 @@ const Engine = () => {
                 },
                 body: JSON.stringify({
                     cobol_code: cobolCode,
-                    filename: 'vault_entry.cbl',
+                    filename: fileName,
                 })
             });
             if (!response.ok) {
@@ -362,15 +247,15 @@ const Engine = () => {
         } catch (err) {
             setError(err.message || 'Engine processing failure');
         } finally {
-            clearTimeout(stageTimer1);
-            clearTimeout(stageTimer2);
-            clearTimeout(stageTimer3);
+            clearTimeout(timer1);
+            clearTimeout(timer2);
+            clearTimeout(timer3);
             setIsProcessing(false);
         }
     };
 
     const copyToClipboard = () => {
-        const code = result?.python_implementation || result?.corrected_code;
+        const code = result?.generated_python;
         if (!code) return;
         navigator.clipboard.writeText(code);
         setCopySuccess(true);
@@ -379,18 +264,28 @@ const Engine = () => {
 
     const handleExportPDF = () => {
         if (!result) return;
+        const v = result.verification || {};
+        const conf = v.confidence || {};
         generateForensicPDF({
-            filename: 'vault_entry.cbl',
+            filename: fileName,
             date: new Date().toLocaleString(),
             analyst: localStorage.getItem('corporate_id') || 'Unknown',
-            confidence: result.audit?.level || 'N/A',
-            summary: result.executive_summary || '',
+            confidence: `Overall: ${conf.overall || 'N/A'}%`,
+            summary: v.executive_summary || result.formatted_output || '',
             cobolCode: cobolCode,
-            pythonCode: result.python_implementation || result.corrected_code || '',
-            mathBreakdown: result.mathematical_breakdown || '',
-            findings: result.findings || [],
-            uncertainties: result.uncertainties || result.audit?.unresolved || [],
-            audit: result.audit || null,
+            pythonCode: result.generated_python || '',
+            mathBreakdown: (v.business_logic || []).map(b => `${b.title}: ${b.formula}`).join('\n'),
+            findings: (v.checklist || []).map(c => ({
+                ref_id: c.status,
+                identified_problem: c.item,
+                verification_note: c.note,
+            })),
+            uncertainties: (v.human_review_items || []).map(h => ({
+                category: h.severity,
+                description: h.item,
+                risk_if_wrong: h.reason,
+            })),
+            audit: null,
         });
     };
 
@@ -404,15 +299,13 @@ const Engine = () => {
         return <AnalysisLoader stage={processingStage} />;
     }
 
-    // ── Error State (network/server errors) ──
+    // ── Error State ──
     if (error && !result) {
         return (
             <div className="p-8 max-w-[1600px] mx-auto space-y-8">
-                <div className="flex justify-between items-end mb-4">
-                    <div className="space-y-1">
-                        <h1 className="text-2xl font-mono font-bold tracking-widest text-text uppercase">The Engine</h1>
-                        <p className="text-[10px] text-text-dim uppercase tracking-[0.2em]">Legacy Micro-Logic Modernization</p>
-                    </div>
+                <div className="space-y-1">
+                    <h1 className="text-2xl font-mono font-bold tracking-widest text-text uppercase">The Engine</h1>
+                    <p className="text-[10px] text-text-dim uppercase tracking-[0.2em]">Legacy Micro-Logic Modernization</p>
                 </div>
                 <div className="bg-red-500/5 border border-red-500/30 p-10 space-y-6 text-center">
                     <AlertTriangle className="text-red-400 mx-auto" size={40} />
@@ -429,6 +322,12 @@ const Engine = () => {
         );
     }
 
+    // ── Derived data for results ──
+    const parser = result?.parser_output;
+    const verification = result?.verification;
+    const confidence = verification?.confidence || {};
+    const generatedPython = result?.generated_python;
+
     // ── Main UI ──
     return (
         <div className="p-8 max-w-[1600px] mx-auto space-y-8">
@@ -441,7 +340,6 @@ const Engine = () => {
                 <div className="flex gap-3 items-center">
                     {result && (
                         <>
-                            {result.audit && <AuditBadge audit={result.audit} />}
                             <button
                                 onClick={() => setShowChat(true)}
                                 className="flex items-center gap-2 px-5 py-2 bg-primary/10 border border-primary/30 text-primary text-[10px] uppercase font-mono tracking-widest hover:bg-primary hover:text-black transition-all"
@@ -480,7 +378,7 @@ const Engine = () => {
                                     </button>
                                 </div>
                                 <div className="px-6 py-4 text-[9px] font-mono text-primary/50 uppercase tracking-widest">
-                                    Zero-Error Audit: Active
+                                    Unified Analysis Pipeline
                                 </div>
                             </div>
 
@@ -556,24 +454,28 @@ const Engine = () => {
                     <div className="space-y-4">
                         <div className="bg-surface/40 border border-border p-6 space-y-6">
                             <div className="flex items-center gap-3 text-primary">
-                                <BrainCircuit size={18} />
+                                <Cpu size={18} />
                                 <span className="text-[10px] uppercase font-mono tracking-widest">Architectural Context</span>
                             </div>
                             <p className="text-xs text-text-dim leading-relaxed">
-                                The Alethia Engine performs multi-pass semantic extraction with mandatory zero-error audit verification. All COBOL variables are humanized into descriptive domain-driven logic.
+                                The Aletheia Engine performs deterministic ANTLR4 parsing, rule-based Python generation, and GPT-4o verification in a single unified pipeline.
                             </p>
                             <div className="space-y-3">
                                 <div className="flex items-center gap-3 text-xs text-text-dim/60">
                                     <ShieldCheck size={14} className="text-primary" />
-                                    <span>3-Stage Zero-Error Verification</span>
+                                    <span>ANTLR4 Deterministic Parse</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-text-dim/60">
+                                    <ShieldCheck size={14} className="text-primary" />
+                                    <span>Rule-Based Python Generation</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-text-dim/60">
+                                    <ShieldCheck size={14} className="text-primary" />
+                                    <span>GPT-4o Verification Layer</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-text-dim/60">
                                     <ShieldCheck size={14} className="text-primary" />
                                     <span>Precision Arithmetic (Decimal)</span>
-                                </div>
-                                <div className="flex items-center gap-3 text-xs text-text-dim/60">
-                                    <ShieldCheck size={14} className="text-primary" />
-                                    <span>SOC-2 Audit Trail</span>
                                 </div>
                             </div>
 
@@ -588,7 +490,7 @@ const Engine = () => {
                                 disabled={!cobolCode.trim()}
                                 className="w-full py-4 bg-primary text-black font-mono font-bold text-xs tracking-[0.2em] hover:bg-white transition-all disabled:opacity-30 flex items-center justify-center gap-2 group"
                             >
-                                INITIALIZE TRANSLATION
+                                ANALYZE
                                 <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
@@ -601,65 +503,285 @@ const Engine = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                 >
-                    {/* Audit Results Panel (always shown when audit data exists) */}
-                    {result.audit && <AuditResultsPanel audit={result.audit} />}
-
-                    {/* Translation Results */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-border border border-border overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-                        {/* Left: Narrative */}
-                        <div className="bg-background p-10 space-y-8">
-                            <div className="flex items-center gap-3 border-b border-border pb-6">
-                                <FileText className="text-primary" size={20} />
-                                <h3 className="text-xs font-mono font-bold tracking-[0.3em] uppercase">Logical Narrative</h3>
-                            </div>
-                            <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] text-primary/50 uppercase tracking-[0.2em] font-mono">Domain Analysis</label>
-                                    <div className="text-sm text-text leading-relaxed font-light">
-                                        {result.executive_summary || 'No summary available.'}
-                                    </div>
+                    {/* ═══ Layer 1: Executive Summary ═══ */}
+                    <div className="border border-border overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 bg-surface/40 border-b border-border/30">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 flex items-center justify-center ${(confidence.overall || 0) >= 90 ? 'bg-green-500/15' : 'bg-amber-500/15'}`}>
+                                    {(confidence.overall || 0) >= 90
+                                        ? <CheckCircle size={20} className="text-green-400" />
+                                        : <AlertTriangle size={20} className="text-amber-400" />
+                                    }
                                 </div>
-                                {result.mathematical_breakdown && (
-                                    <div className="space-y-4 pt-4">
-                                        <label className="text-[10px] text-primary/50 uppercase tracking-[0.2em] font-mono">Mathematical Proofs</label>
-                                        <div className="text-xs text-text-dim leading-relaxed bg-surface/30 p-4 border border-border/50">
-                                            {result.mathematical_breakdown}
-                                        </div>
-                                    </div>
-                                )}
+                                <div>
+                                    <h3 className="text-sm font-mono font-bold tracking-wider text-text uppercase">
+                                        {(confidence.overall || 0) >= 95 ? 'Analysis Complete' : 'Review Required'}
+                                    </h3>
+                                    <p className="text-[10px] text-text-dim">
+                                        {parser?.filename || fileName}
+                                    </p>
+                                </div>
                             </div>
-                            <button
-                                onClick={handleReset}
-                                className="px-6 py-3 border border-border text-[10px] uppercase font-mono tracking-widest text-text-dim hover:text-text hover:border-primary transition-all"
-                            >
-                                Reset Engine
-                            </button>
+                            <div className="flex gap-6">
+                                <ConfidenceRing value={confidence.parser} label="Parser" />
+                                <ConfidenceRing value={confidence.translation} label="Translation" />
+                                <ConfidenceRing value={confidence.verification} label="Verification" />
+                                <ConfidenceRing value={confidence.overall} label="Overall" size={72} />
+                            </div>
                         </div>
+                        <div className="px-6 py-5">
+                            <p className="text-sm text-text leading-relaxed">
+                                {verification?.executive_summary || 'No summary available.'}
+                            </p>
+                        </div>
+                    </div>
 
-                        {/* Right: Code */}
-                        <div className="bg-background p-10 relative flex flex-col border-l border-border/50">
-                            <div className="flex justify-between items-center border-b border-border/30 pb-6 mb-8">
+                    {/* ═══ Layer 2: Business Logic ═══ */}
+                    {verification?.business_logic && verification.business_logic.length > 0 && (
+                        <Section title="Business Logic" icon={FileText} count={verification.business_logic.length} defaultOpen>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {verification.business_logic.map((item, i) => (
+                                    <div key={i} className="p-4 border border-border/30 bg-background/50 space-y-2">
+                                        <h4 className="text-[11px] font-mono font-bold uppercase tracking-wider text-text">{item.title}</h4>
+                                        <div className="text-[10px] font-mono text-primary bg-primary/5 px-3 py-2 border border-primary/20">
+                                            {item.formula}
+                                        </div>
+                                        <p className="text-[11px] text-text-dim leading-relaxed">{item.explanation}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </Section>
+                    )}
+
+                    {/* ═══ Layer 3: Technical Detail ═══ */}
+                    {parser?.success && (
+                        <Section title="Technical Detail" icon={Cpu} defaultOpen={false}>
+                            {/* Summary Stats */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <StatBox label="Paragraphs" value={parser.summary?.paragraphs ?? 0} />
+                                <StatBox label="Variables" value={parser.summary?.variables ?? 0} />
+                                <StatBox label="COMP-3" value={parser.summary?.comp3_variables ?? 0} warn={parser.summary?.comp3_variables > 0} />
+                                <StatBox label="PERFORM Calls" value={parser.summary?.perform_calls ?? 0} />
+                                <StatBox label="COMPUTE" value={parser.summary?.compute_statements ?? 0} />
+                                <StatBox label="Business Rules" value={parser.summary?.business_rules ?? 0} />
+                                <StatBox label="Cycles" value={parser.summary?.cycles ?? 0} warn={parser.summary?.cycles > 0} />
+                                <StatBox label="Unreachable" value={parser.summary?.unreachable ?? 0} warn={parser.summary?.unreachable > 0} />
+                            </div>
+
+                            {/* Paragraphs */}
+                            <div className="space-y-1 mb-3">
+                                <div className="text-[9px] font-mono uppercase tracking-wider text-primary/60 pb-1">Paragraphs</div>
+                                {parser.paragraphs?.map((name, i) => (
+                                    <div key={i} className="flex items-center gap-3 px-3 py-2 bg-background/50 border border-border/20">
+                                        <span className={`text-[10px] font-mono ${i === 0 ? 'text-primary font-bold' : 'text-text'}`}>{name}</span>
+                                        {i === 0 && (
+                                            <span className="text-[8px] font-mono uppercase px-1.5 py-0.5 border border-primary/30 text-primary bg-primary/10">
+                                                Entry Point
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Variables */}
+                            <div className="space-y-1 mb-3">
+                                <div className="text-[9px] font-mono uppercase tracking-wider text-primary/60 pb-1">
+                                    Variables {parser.summary?.comp3_variables > 0 && <span className="text-amber-400 ml-2">{parser.summary.comp3_variables} COMP-3</span>}
+                                </div>
+                                {parser.variables?.map((v, i) => (
+                                    <div key={i} className={`flex items-center gap-3 px-3 py-2 border ${v.comp3 ? 'border-amber-500/30 bg-amber-500/5' : 'border-border/20 bg-background/50'}`}>
+                                        <span className={`text-[10px] font-mono flex-1 ${v.comp3 ? 'text-amber-400' : 'text-text-dim'}`}>{v.raw}</span>
+                                        {v.comp3 && (
+                                            <span className="text-[8px] font-mono uppercase px-1.5 py-0.5 border border-amber-500/30 text-amber-400 bg-amber-500/10 shrink-0">
+                                                COMP-3
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Control Flow */}
+                            {parser.control_flow?.length > 0 && (
+                                <div className="space-y-1 mb-3">
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-primary/60 pb-1">Control Flow</div>
+                                    {parser.control_flow.map((edge, i) => (
+                                        <div key={i} className="flex items-center gap-3 px-3 py-2 bg-background/50 border border-border/20">
+                                            <span className="text-[10px] font-mono text-primary">{edge.from}</span>
+                                            <ArrowRight size={12} className="text-text-dim/40 shrink-0" />
+                                            <span className="text-[10px] font-mono text-text">{edge.to}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* COMPUTE Statements */}
+                            {parser.computes?.length > 0 && (
+                                <div className="space-y-1 mb-3">
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-primary/60 pb-1">COMPUTE Statements</div>
+                                    {Object.entries(groupByParagraph(parser.computes)).map(([para, items]) => (
+                                        <div key={para} className="space-y-1">
+                                            <div className="text-[9px] font-mono uppercase tracking-wider text-text-dim/60 pt-1">{para}</div>
+                                            {items.map((c, i) => (
+                                                <div key={i} className="px-3 py-2 bg-background/50 border border-border/20">
+                                                    <span className="text-[10px] font-mono text-text-dim break-all">{c.statement}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* IF Conditions */}
+                            {parser.conditions?.length > 0 && (
+                                <div className="space-y-1 mb-3">
+                                    <div className="text-[9px] font-mono uppercase tracking-wider text-primary/60 pb-1">Business Rules (IF)</div>
+                                    {Object.entries(groupByParagraph(parser.conditions)).map(([para, items]) => (
+                                        <div key={para} className="space-y-1">
+                                            <div className="text-[9px] font-mono uppercase tracking-wider text-text-dim/60 pt-1">{para}</div>
+                                            {items.map((c, i) => (
+                                                <div key={i} className="px-3 py-2 bg-background/50 border border-border/20">
+                                                    <span className="text-[10px] font-mono text-text-dim break-all">{c.statement}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Warnings */}
+                            {((parser.cycles?.length > 0) || (parser.unreachable?.length > 0)) && (
+                                <div className="space-y-2 mt-3">
+                                    {parser.cycles?.length > 0 && (
+                                        <div className="space-y-1">
+                                            <div className="text-[9px] font-mono uppercase tracking-wider text-amber-400">Cycles Detected</div>
+                                            {parser.cycles.map((cycle, i) => (
+                                                <div key={i} className="flex items-center gap-2 px-3 py-2 border border-amber-500/30 bg-amber-500/5">
+                                                    <AlertTriangle size={12} className="text-amber-400 shrink-0" />
+                                                    <span className="text-[10px] font-mono text-amber-400">{cycle.join(' \u2192 ')} \u2192 {cycle[0]}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {parser.unreachable?.length > 0 && (
+                                        <div className="space-y-1">
+                                            <div className="text-[9px] font-mono uppercase tracking-wider text-red-400">Unreachable Code</div>
+                                            {parser.unreachable.map((name, i) => (
+                                                <div key={i} className="flex items-center gap-2 px-3 py-2 border border-red-500/30 bg-red-500/5">
+                                                    <XCircle size={12} className="text-red-400 shrink-0" />
+                                                    <span className="text-[10px] font-mono text-red-400">{name}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </Section>
+                    )}
+
+                    {/* ═══ Layer 4: Generated Python ═══ */}
+                    {generatedPython && (
+                        <div className="border border-green-500/30 overflow-hidden">
+                            <div className="flex items-center justify-between px-5 py-3 bg-green-500/5 border-b border-green-500/20">
                                 <div className="flex items-center gap-3">
-                                    <Code2 className="text-primary" size={20} />
-                                    <h3 className="text-xs font-mono font-bold tracking-[0.3em] uppercase">Python 3.12 (A-Vault Spec)</h3>
+                                    <Code2 size={16} className="text-green-400" />
+                                    <span className="text-[11px] font-mono uppercase tracking-wider text-text">
+                                        Generated Python 3.12
+                                    </span>
+                                    <span className="text-[9px] font-mono uppercase px-2 py-0.5 border border-green-500/30 text-green-400 bg-green-500/10">
+                                        Decimal-Safe
+                                    </span>
                                 </div>
                                 <button
                                     onClick={copyToClipboard}
-                                    className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 text-[10px] uppercase font-mono tracking-widest hover:bg-primary hover:text-black transition-all"
+                                    className="flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary border border-primary/20 text-[10px] uppercase font-mono tracking-widest hover:bg-primary hover:text-black transition-all"
                                 >
-                                    {copySuccess ? <Check size={14} /> : <Copy size={14} />}
-                                    {copySuccess ? 'Copied' : 'Copy Python'}
+                                    {copySuccess ? <Check size={12} /> : <Copy size={12} />}
+                                    {copySuccess ? 'Copied' : 'Copy'}
                                 </button>
                             </div>
-                            <div className="flex-1 overflow-auto">
-                                <div className="bg-surface/30 border border-border/50 p-6 min-h-[300px]">
-                                    <pre className="font-mono text-sm leading-7 text-text whitespace-pre-wrap break-words selection:bg-primary/20">
-                                        <code>{result.python_implementation || result.corrected_code || 'No translation available.'}</code>
+                            <div className="bg-background/80 overflow-auto max-h-[600px]">
+                                <div className="flex">
+                                    <div className="w-12 flex-shrink-0 bg-surface/30 border-r border-border/30 select-none py-4 pr-2">
+                                        {generatedPython.split('\n').map((_, i) => (
+                                            <div key={i} className="text-right text-[10px] font-mono text-text-dim/30 leading-relaxed pr-1">
+                                                {i + 1}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <pre className="flex-1 p-4 font-mono text-sm leading-relaxed text-primary whitespace-pre overflow-x-auto">
+                                        <code>{generatedPython}</code>
                                     </pre>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* ═══ Layer 5: Verification Checklist ═══ */}
+                    {verification?.checklist && verification.checklist.length > 0 && (
+                        <Section title="Verification Checklist" icon={ShieldCheck} count={verification.checklist.length} defaultOpen>
+                            <div className="space-y-1">
+                                {verification.checklist.map((item, i) => {
+                                    const statusCfg = {
+                                        PASS: { color: 'text-green-400 bg-green-500/10 border-green-500/30', Icon: CheckCircle },
+                                        FAIL: { color: 'text-red-400 bg-red-500/10 border-red-500/30', Icon: XCircle },
+                                        WARN: { color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', Icon: AlertTriangle },
+                                    };
+                                    const cfg = statusCfg[item.status] || statusCfg.WARN;
+                                    const StatusIcon = cfg.Icon;
+                                    return (
+                                        <div key={i} className="flex items-start gap-3 px-4 py-3 bg-background/50 border border-border/20">
+                                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider border shrink-0 ${cfg.color}`}>
+                                                <StatusIcon size={10} />
+                                                {item.status}
+                                            </span>
+                                            <div className="flex-1">
+                                                <span className="text-[11px] font-mono text-text">{item.item}</span>
+                                                {item.note && <p className="text-[10px] text-text-dim mt-0.5">{item.note}</p>}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </Section>
+                    )}
+
+                    {/* ═══ Layer 6: Human Review Flags ═══ */}
+                    {verification?.human_review_items && verification.human_review_items.length > 0 && (
+                        <Section title="Human Review Flags" icon={Eye} count={verification.human_review_items.length} defaultOpen>
+                            <div className="space-y-2">
+                                {verification.human_review_items.map((item, i) => {
+                                    const severityCfg = {
+                                        HIGH: 'text-red-400 bg-red-500/10 border-red-500/30',
+                                        MEDIUM: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+                                        LOW: 'text-text-dim bg-surface/30 border-border/30',
+                                    };
+                                    const sColor = severityCfg[item.severity] || severityCfg.MEDIUM;
+                                    return (
+                                        <div key={i} className="p-4 bg-background/50 border border-border/20 space-y-2">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`text-[9px] font-mono uppercase px-2 py-0.5 border ${sColor}`}>
+                                                    {item.severity}
+                                                </span>
+                                                <span className="text-[11px] font-mono text-text">{item.item}</span>
+                                            </div>
+                                            {item.reason && (
+                                                <p className="text-[10px] text-text-dim pl-1">{item.reason}</p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </Section>
+                    )}
+
+                    {/* Reset */}
+                    <button
+                        onClick={handleReset}
+                        className="flex items-center gap-2 px-6 py-3 border border-border text-[10px] uppercase font-mono tracking-widest text-text-dim hover:text-text hover:border-primary transition-all"
+                    >
+                        <RefreshCw size={14} />
+                        Reset Engine
+                    </button>
                 </motion.div>
             )}
 
@@ -667,7 +789,7 @@ const Engine = () => {
                 {showChat && result && (
                     <ExplanationChat
                         cobolContext={cobolCode}
-                        pythonContext={result.python_implementation || result.corrected_code || ''}
+                        pythonContext={result.generated_python || ''}
                         onClose={() => setShowChat(false)}
                     />
                 )}

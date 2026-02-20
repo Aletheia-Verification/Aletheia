@@ -6,7 +6,6 @@ import TopNav from './components/TopNav';
 import Vault from './components/Vault';
 import Engine from './components/Engine';
 import SecurityPanel from './components/SecurityPanel';
-import DeterministicEngine from './components/DeterministicEngine';
 import EngineTransition from './components/EngineTransition';
 import VaultTransition from './components/VaultTransition';
 import { useAuth } from './context/AuthContext';
@@ -101,10 +100,6 @@ function App() {
     return <VaultTransition />;
   }
 
-  if (transitioning === 'deterministic') {
-    return <EngineTransition />;
-  }
-
   // Home Gateway
   if (currentView === 'home') {
     return <HomePage onNavigate={handleNavigate} />;
@@ -122,24 +117,6 @@ function App() {
         />
         <main className="pt-4">
           <Engine />
-        </main>
-        <SecurityPanel isOpen={securityOpen} setIsOpen={setSecurityOpen} />
-      </div>
-    );
-  }
-
-  // Deterministic Engine View
-  if (currentView === 'deterministic') {
-    return (
-      <div className="min-h-screen bg-background">
-        <TopNav
-          onBack={handleBackToHome}
-          onLogout={auth.logout}
-          title="DETERMINISTIC ENGINE"
-          onSecurityClick={handleSecurityOpen}
-        />
-        <main className="pt-4">
-          <DeterministicEngine />
         </main>
         <SecurityPanel isOpen={securityOpen} setIsOpen={setSecurityOpen} />
       </div>

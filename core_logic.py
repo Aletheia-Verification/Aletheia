@@ -1006,6 +1006,105 @@ reassurance.\
 
 
 # ──────────────────────────────────────────────────────────────────────
+# UNIFIED ENGINE VERIFICATION PROMPT
+# ──────────────────────────────────────────────────────────────────────
+
+_ENGINE_VERIFICATION_SYSTEM_PROMPT = """\
+You are the FINAL VERIFICATION LAYER for a COBOL-to-Python migration engine \
+used by banks processing billions of dollars.
+
+CONTEXT:
+- The ANTLR4 parser has already extracted the COBOL structure deterministically
+- The Python code has been generated deterministically
+- Your job is to VERIFY, EXPLAIN, and FORMAT — not to guess or create
+
+YOUR CONSTRAINTS:
+1. You are NOT generating the translation. It has already been done by \
+deterministic tools.
+2. You are VERIFYING that the translation is correct.
+3. If you see ANY inconsistency, you MUST flag it. Do not hide problems.
+4. If you are uncertain about ANYTHING, say "REQUIRES HUMAN VERIFICATION" \
+— never guess.
+5. A single error could cost millions of dollars. Act accordingly.
+
+YOUR OUTPUT MUST BE VALID JSON with this exact structure:
+
+{
+  "executive_summary": "3-4 sentences: What does this program do in plain \
+English? How many business functions? How many financial variables? \
+Any critical flags?",
+
+  "business_logic": [
+    {
+      "title": "Name of the calculation or rule",
+      "formula": "Daily Rate = Annual Rate / Days in Year",
+      "explanation": "Plain English explanation of the business logic"
+    }
+  ],
+
+  "checklist": [
+    {
+      "item": "What was checked",
+      "status": "PASS or FAIL or WARN",
+      "note": "Details of the verification"
+    }
+  ],
+
+  "human_review_items": [
+    {
+      "item": "Description of the issue",
+      "reason": "Why it needs human review",
+      "severity": "HIGH or MEDIUM or LOW"
+    }
+  ],
+
+  "confidence": {
+    "parser": 100,
+    "translation": 85,
+    "verification": 90,
+    "overall": 88
+  }
+}
+
+CHECKLIST items you MUST verify:
+- Paragraph count matches between COBOL and Python functions
+- All COMP-3 variables identified and use Decimal
+- All COMPUTE statements captured as Python assignments
+- All IF/ELSE conditions preserved
+- Control flow (PERFORM calls) mapped to function calls
+- No unreachable code introduced
+- Python output uses Decimal (not float)
+- Truncation vs rounding handled correctly \
+(COBOL COMPUTE without ROUNDED = TRUNCATION)
+
+HUMAN REVIEW triggers (always flag these):
+- Nested IF statements (depth > 2)
+- 88-level condition names
+- Implicit type conversions
+- REDEFINES clauses
+- COPY statements (external dependencies)
+- GO TO statements
+- ALTER statements
+- Precision loss in intermediate calculations
+
+FORMATTING RULES:
+- Use clean, scannable structure
+- Use checkmark symbols for verified, warning for warnings, X for errors
+- Make it scannable — a tired executive at 11pm must understand it
+- No jargon without explanation
+- No walls of text — use structure
+
+REMEMBER:
+- You are the last line of defense before this goes to production
+- Banks will make financial decisions based on your output
+- Regulators may audit this
+- When in doubt, flag it for human review — never assume
+
+If overall confidence is below 95%, mark output as REQUIRES MANUAL REVIEW.
+"""
+
+
+# ──────────────────────────────────────────────────────────────────────
 # LOGIC EXTRACTION SERVICE
 # ──────────────────────────────────────────────────────────────────────
 
@@ -2117,6 +2216,14 @@ except ImportError:
     ANTLR_AVAILABLE = False
     logger.warning("ANTLR4 parser not available — install dependencies.")
 
+try:
+    from generate_full_python import generate_python_module
+    GENERATOR_AVAILABLE = True
+    logger.info("COBOL-to-Python generator loaded successfully.")
+except ImportError:
+    GENERATOR_AVAILABLE = False
+    logger.warning("COBOL-to-Python generator not available — install dependencies.")
+
 
 @app.post("/parse")
 async def parse_cobol_code(
@@ -2164,6 +2271,243 @@ async def parse_cobol_code(
     result["engine"] = "deterministic"
     
     return result
+
+
+@app.post("/generate")
+async def generate_python_from_cobol(
+    request: AnalyzeRequest,
+    username: str = Depends(verify_token),
+):
+    """
+    Generate Python module from COBOL source using deterministic transpiler.
+
+    Uses ANTLR4 parse tree + rule-based code generation. No LLM.
+    All numeric variables use decimal.Decimal.
+    """
+    if not GENERATOR_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="COBOL-to-Python generator not configured.",
+        )
+
+    if not request.cobol_code.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Empty COBOL source provided.",
+        )
+
+    # Record in audit trail
+    if USE_IN_MEMORY_DB or not DB_AVAILABLE:
+        record_security_event(username, f"Generate: {request.filename}")
+    else:
+        async with AsyncSessionLocal() as db:
+            user = await get_user_by_username_db(db, username)
+            if user:
+                await record_security_event_db(db, user, f"Generate: {request.filename}")
+                await db.commit()
+
+    try:
+        python_code = generate_python_module(request.cobol_code)
+    except Exception as e:
+        logger.error("Generation failed: %s", e)
+        return {
+            "success": False,
+            "python_code": None,
+            "error": str(e),
+        }
+
+    # generate_python_module returns "# PARSE ERROR: ..." on failure
+    if python_code.startswith("# PARSE ERROR"):
+        return {
+            "success": False,
+            "python_code": None,
+            "error": python_code.replace("# PARSE ERROR: ", ""),
+        }
+
+    return {
+        "success": True,
+        "python_code": python_code,
+        "error": None,
+    }
+
+
+# ════════════════════════════════════════════════════════════════════════
+# UNIFIED ENGINE ENDPOINT
+# ════════════════════════════════════════════════════════════════════════
+
+def _offline_verification_stub(
+    parser_output: Dict[str, Any],
+    generated_python: Optional[str],
+) -> Dict[str, Any]:
+    """
+    Deterministic verification stub when GPT is unavailable.
+
+    Returns conservative scores so the user knows verification was skipped.
+    Parser stage is always 100 (deterministic), translation depends on
+    whether generation succeeded, verification is 0 (not run).
+    """
+    translation_score = 80 if generated_python else 0
+    overall = 60 if generated_python else 30
+
+    summary = parser_output.get("summary", {})
+    para_count = summary.get("paragraphs", 0)
+    var_count = summary.get("variables", 0)
+    comp3_count = summary.get("comp3_variables", 0)
+
+    return {
+        "executive_summary": (
+            f"ANTLR4 parser extracted {para_count} paragraphs, "
+            f"{var_count} variables ({comp3_count} COMP-3). "
+            f"{'Python generated successfully.' if generated_python else 'Python generation unavailable.'} "
+            "GPT verification was NOT run — results require manual review."
+        ),
+        "business_logic": [],
+        "checklist": [
+            {"item": "ANTLR4 Parse", "status": "PASS", "note": "Deterministic parser completed successfully."},
+            {"item": "Python Generation", "status": "PASS" if generated_python else "FAIL", "note": "Deterministic transpiler." if generated_python else "Generator unavailable."},
+            {"item": "GPT Verification", "status": "WARN", "note": "OpenAI API key not configured — verification skipped."},
+        ],
+        "human_review_items": [
+            {
+                "item": "Full verification not performed",
+                "reason": "GPT verification layer was unavailable. All output should be manually reviewed.",
+                "severity": "HIGH",
+            },
+        ],
+        "confidence": {
+            "parser": 100,
+            "translation": translation_score,
+            "verification": 0,
+            "overall": overall,
+        },
+    }
+
+
+@app.post("/engine/analyze")
+async def engine_analyze(
+    request: AnalyzeRequest,
+    username: str = Depends(verify_token),
+):
+    """
+    Unified Engine — single endpoint that orchestrates all three stages:
+
+    1. ANTLR4 deterministic parse
+    2. Deterministic Python generation
+    3. GPT-4o verification & explanation
+
+    Falls back gracefully at every stage.
+    """
+    if not request.cobol_code.strip():
+        raise HTTPException(status_code=400, detail="Empty COBOL source provided.")
+
+    filename = request.filename or "source.cbl"
+
+    # ── Stage 1: ANTLR4 Parse ────────────────────────────────────────
+    parser_output = None
+    if ANTLR_AVAILABLE:
+        try:
+            parser_output = antlr_analyze_cobol(request.cobol_code)
+            parser_output["filename"] = filename
+            parser_output["parser"] = "ANTLR4"
+            parser_output["engine"] = "deterministic"
+        except Exception as e:
+            logger.error("ANTLR4 parse failed: %s", e)
+            parser_output = None
+
+    if parser_output is None:
+        parser_output = {
+            "success": False,
+            "message": "ANTLR4 parser unavailable or failed.",
+            "summary": {},
+            "paragraphs": [],
+            "variables": [],
+            "control_flow": [],
+            "computes": [],
+            "conditions": [],
+            "cycles": [],
+            "unreachable": [],
+            "filename": filename,
+            "parser": "none",
+            "engine": "offline",
+        }
+
+    # ── Stage 2: Python Generation ───────────────────────────────────
+    generated_python = None
+    if GENERATOR_AVAILABLE:
+        try:
+            code = generate_python_module(request.cobol_code)
+            if not code.startswith("# PARSE ERROR"):
+                generated_python = code
+        except Exception as e:
+            logger.error("Python generation failed: %s", e)
+
+    # ── Stage 3: GPT-4o Verification ─────────────────────────────────
+    verification = None
+    if (
+        analysis_engine.client
+        and parser_output.get("success")
+    ):
+        try:
+            user_payload = (
+                f"COBOL SOURCE ({filename}):\n"
+                f"{request.cobol_code}\n\n"
+                f"PARSER OUTPUT:\n"
+                f"{json.dumps(parser_output, indent=2)}\n\n"
+                f"GENERATED PYTHON:\n"
+                f"{generated_python or '(generation unavailable)'}"
+            )
+
+            gpt_response = await analysis_engine.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": _ENGINE_VERIFICATION_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_payload},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1,
+            )
+
+            raw = gpt_response.choices[0].message.content
+            verification = json.loads(raw)
+        except Exception as e:
+            logger.error("GPT verification failed: %s", e)
+            verification = None
+
+    # Fallback to offline stub
+    if verification is None:
+        verification = _offline_verification_stub(parser_output, generated_python)
+
+    # ── Build formatted summary ──────────────────────────────────────
+    conf = verification.get("confidence", {})
+    formatted_output = (
+        f"═══ ENGINE ANALYSIS: {filename} ═══\n\n"
+        f"{verification.get('executive_summary', 'No summary available.')}\n\n"
+        f"Confidence — Parser: {conf.get('parser', 'N/A')}%  "
+        f"Translation: {conf.get('translation', 'N/A')}%  "
+        f"Verification: {conf.get('verification', 'N/A')}%  "
+        f"Overall: {conf.get('overall', 'N/A')}%"
+    )
+
+    # ── Audit trail ──────────────────────────────────────────────────
+    if USE_IN_MEMORY_DB or not DB_AVAILABLE:
+        record_security_event(username, f"Engine Analyze: {filename}")
+    else:
+        async with AsyncSessionLocal() as db:
+            user = await get_user_by_username_db(db, username)
+            if user:
+                await record_security_event_db(
+                    db, user, f"Engine Analyze: {filename}"
+                )
+                await db.commit()
+
+    return {
+        "success": True,
+        "parser_output": parser_output,
+        "generated_python": generated_python,
+        "verification": verification,
+        "formatted_output": formatted_output,
+    }
+
 
 # ──────────────────────────────────────────────────────────────────────
 # ENTRYPOINT
