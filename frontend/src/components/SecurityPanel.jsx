@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Shield, Activity, Key, LogOut, User, Download } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { X, Shield, Activity, Key, LogOut, User, Download, Upload } from 'lucide-react';
 import { apiUrl } from '../config/api';
 
 const SecurityPanel = ({ isOpen, setIsOpen }) => {
@@ -126,12 +125,12 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
 
     const getEventIcon = (event) => {
         const eventLower = (event || '').toLowerCase();
-        if (eventLower.includes('login')) return '🔓';
-        if (eventLower.includes('password')) return '🔑';
-        if (eventLower.includes('analysis')) return '🔬';
-        if (eventLower.includes('upload')) return '📤';
-        if (eventLower.includes('export')) return '📄';
-        return '📋';
+        if (eventLower.includes('login')) return <LogOut size={14} className="text-text-dim" />;
+        if (eventLower.includes('password')) return <Key size={14} className="text-text-dim" />;
+        if (eventLower.includes('analysis')) return <Shield size={14} className="text-text-dim" />;
+        if (eventLower.includes('upload')) return <Upload size={14} className="text-text-dim" />;
+        if (eventLower.includes('export')) return <Download size={14} className="text-text-dim" />;
+        return <Activity size={14} className="text-text-dim" />;
     };
 
     const groupEventsByDate = (events) => {
@@ -154,36 +153,24 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
         return groups;
     };
 
+    if (!isOpen) return null;
+
     return (
         <>
             {/* Backdrop */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        onClick={() => setIsOpen(false)}
-                        className="fixed inset-0 bg-black/60 z-[998]"
-                    />
-                )}
-            </AnimatePresence>
+            <div
+                onClick={() => setIsOpen(false)}
+                className="fixed inset-0 bg-black/60 z-[998] modal-backdrop"
+            />
 
             {/* Panel */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ x: '100%' }}
-                        animate={{ x: 0 }}
-                        exit={{ x: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        className="fixed top-0 right-0 w-[400px] h-screen bg-surface border-l border-border z-[999]
-                                 flex flex-col"
-                        style={{
-                            boxShadow: 'var(--shadow-lg)'
-                        }}
-                    >
+            <div
+                className="fixed top-0 right-0 w-[400px] h-screen bg-surface border-l border-border z-[999]
+                         flex flex-col fade-in"
+                style={{
+                    boxShadow: 'var(--shadow-lg)'
+                }}
+            >
                         {/* Header */}
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <h2 className="text-lg font-mono font-bold tracking-wider text-text uppercase">
@@ -260,7 +247,7 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
                                                     border: `1px solid ${userInfo.is_approved ? 'var(--color-success-border)' : 'var(--color-warning-border)'}`
                                                 }}
                                             >
-                                                {userInfo.is_approved ? '✓ Approved' : '⏳ Pending'}
+                                                {userInfo.is_approved ? 'Approved' : 'Pending'}
                                             </span>
                                         </div>
                                     </div>
@@ -332,7 +319,7 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
                                                     </div>
                                                     {events.map((event, i) => (
                                                         <div key={i} className="flex gap-3 py-2 border-b border-border/50">
-                                                            <span className="text-sm">{getEventIcon(event.event)}</span>
+                                                            <span className="flex-shrink-0">{getEventIcon(event.event)}</span>
                                                             <div className="flex-1">
                                                                 <div className="text-[12px] text-text">{event.event}</div>
                                                                 <div className="text-[10px] text-text-dim mt-0.5">
@@ -440,9 +427,7 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
                                 </div>
                             )}
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    </div>
         </>
     );
 };

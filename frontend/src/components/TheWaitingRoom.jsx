@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { ShieldAlert, LogOut } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import Logo from './Logo';
@@ -12,10 +11,8 @@ const TheWaitingRoom = () => {
             {/* Darkened Overlay */}
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
 
-            <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="w-full max-w-2xl bg-surface/40 backdrop-blur-2xl border border-primary/30 rounded-3xl p-12 text-center shadow-[0_0_50px_rgba(212,175,55,0.15)] relative z-10 animate-pulse-gold"
+            <div
+                className="w-full max-w-2xl bg-surface/40 backdrop-blur-2xl border border-primary/30 rounded-3xl p-12 text-center relative z-10 fade-in"
             >
                 <div className="flex flex-col items-center mb-8">
                     <Logo
@@ -50,13 +47,13 @@ const TheWaitingRoom = () => {
                         }}
                         className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-text-dim hover:text-primary transition-colors"
                     >
-                        <LogOut size={14} /> Exit to Sanctuary
+                        <LogOut size={14} /> Sign Out
                     </button>
                     <span className="text-[10px] uppercase tracking-widest text-primary/40 font-mono">
                         Alethia Security Protocol v2.5.0
                     </span>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 };

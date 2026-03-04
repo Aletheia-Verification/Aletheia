@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Send, X, ShieldCheck, AlertCircle } from 'lucide-react';
 import { apiUrl } from '../config/api';
 
@@ -80,11 +79,8 @@ const ExplanationChat = ({ cobolContext, pythonContext, onClose, context = 'resu
     };
 
     return (
-        <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            className="fixed right-0 top-0 h-screen w-[450px] bg-background border-l border-border z-[60] shadow-2xl flex flex-col"
+        <div
+            className="fixed right-0 top-0 h-screen w-[450px] bg-background border-l border-border z-[60] shadow-2xl flex flex-col fade-in"
         >
             {/* Header */}
             <header className="p-6 border-b border-border flex justify-between items-center bg-surface/30">
@@ -179,10 +175,10 @@ const ExplanationChat = ({ cobolContext, pythonContext, onClose, context = 'resu
                     </button>
                 </div>
                 <div className="mt-4 text-[8px] font-mono text-text-dim/40 uppercase tracking-[0.2em] text-center">
-                    Secure Channel &bull; Zero Hallucination Mode Active
+                    Secure Channel
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 };
 

@@ -6,8 +6,6 @@ import {
     Shield, Sparkles, AlertCircle, FileText,
     Calculator, Scale, Wrench, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-
 import { API_BASE } from '../config/api';
 
 const Dashboard = ({ onLogout, corporateId, isDemoMode }) => {
@@ -139,7 +137,7 @@ logger = logging.getLogger("interest_calculator")
 @dataclass
 class InterestCalculator:
     """
-    Legacy COBOL Interest Calculation - Python 3.12 Translation
+    Legacy COBOL Interest Calculation - Python 3.12 Logic Extraction
 
     Source: INTR-CALC-3270.cbl (Lines 145-190)
     Translated: ${new Date().toISOString().split('T')[0]}
@@ -194,7 +192,7 @@ class InterestCalculator:
 
         return rate.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)`,
 
-                    summary: "[DEMO] Technical Audit: Legacy interest calculation module with undocumented age-based adjustments."
+                    summary: "[DEMO] Behavioral Verification: Legacy interest calculation module with undocumented age-based adjustments."
                 });
                 setAnalyzing(false);
             }, 2500);
@@ -257,7 +255,7 @@ class InterestCalculator:
                 </div>
 
                 <nav className="flex-1 space-y-6">
-                    <button className="p-3 text-primary bg-primary/10 rounded-xl border border-primary/20 shadow-primary-glow">
+                    <button className="p-3 text-primary bg-primary/10 rounded-xl border border-primary/20">
                         <Cpu className="w-5 h-5" />
                     </button>
                     <button className="p-3 text-text-dim hover:text-text hover:bg-surface-highlight rounded-xl transition-all">
@@ -306,7 +304,7 @@ class InterestCalculator:
                             {isDemoMode && (
                                 <span className="text-[9px] uppercase tracking-widest text-primary bg-primary/10 px-2 py-1 rounded-full border border-primary/20">Demo</span>
                             )}
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-surface-highlight to-border border border-border flex items-center justify-center text-[10px] font-bold">
+                            <div className="w-8 h-8 rounded-full bg-surface-highlight border border-border flex items-center justify-center text-[10px] font-bold">
                                 {userInitials}
                             </div>
                         </div>
@@ -362,7 +360,7 @@ class InterestCalculator:
                         <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-surface-highlight/40">
                             <div className="flex items-center gap-3">
                                 <Terminal className="w-4 h-4 text-primary" />
-                                <span className="text-xs font-bold uppercase tracking-wider text-text">Python 3.12 Translation</span>
+                                <span className="text-xs font-bold uppercase tracking-wider text-text">Python 3.12 Logic Extraction</span>
                             </div>
                             <div className="flex gap-1.5">
                                 <div className="w-2 h-2 rounded-full bg-red-500/30" />
@@ -384,7 +382,6 @@ class InterestCalculator:
                                 <div className="h-full flex flex-col items-center justify-center space-y-6">
                                     <div className="relative">
                                         <div className="w-12 h-12 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                                        <div className="absolute inset-0 w-12 h-12 bg-primary/10 blur-xl animate-pulse rounded-full" />
                                     </div>
                                     <div className="text-center space-y-2">
                                         <p className="text-xs uppercase tracking-[0.3em] font-bold text-primary animate-pulse">Analyzing Logic</p>
@@ -392,13 +389,9 @@ class InterestCalculator:
                                     </div>
                                 </div>
                             ) : result ? (
-                                <motion.pre
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="text-text/90 selection:bg-primary/30 selection:text-white"
-                                >
+                                <pre className="text-text/90 selection:bg-primary/30 selection:text-white fade-in">
                                     <code>{result.python_implementation}</code>
-                                </motion.pre>
+                                </pre>
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-center opacity-20 space-y-4">
                                     <Cpu className="w-12 h-12" />
@@ -407,30 +400,27 @@ class InterestCalculator:
                             )}
                         </div>
 
-                        {/* Scanline Overlay */}
-                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-primary/5 to-transparent h-2 top-0 animate-[scanline_8s_linear_infinite]" />
                     </section>
 
                     {/* Column 3: The Audit (Tier-1 Banking Report) */}
                     <section className="w-[420px] space-y-4 overflow-y-auto pr-1">
 
-                        {/* Confidence Score & Metrics */}
+                        {/* Verification Status */}
                         <div className="bg-surface/50 border border-border rounded-2xl p-5 space-y-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-dim">Traceability Score</h3>
-                                <BarChart3 className="w-4 h-4 text-text-dim" />
+                                <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-dim">Verification Status</h3>
+                                <Shield className="w-4 h-4 text-text-dim" />
                             </div>
-                            <div className="flex items-end gap-3">
-                                <span className="text-4xl font-bold tracking-tighter text-text">
-                                    {result ? (result.traceability_score * 100).toFixed(0) : '0'}<span className="text-primary text-xl ml-1">%</span>
-                                </span>
-                                <div className="flex-1 h-3 bg-surface-highlight rounded-full overflow-hidden mb-1 border border-border/50">
-                                    <motion.div
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${result ? result.traceability_score * 100 : 0}%` }}
-                                        className="h-full bg-gradient-to-r from-primary/50 to-primary shadow-[0_0_10px_rgba(234,179,8,0.5)]"
-                                    />
-                                </div>
+                            <div className="flex items-center gap-3">
+                                {result ? (
+                                    <span className="text-sm font-bold uppercase tracking-widest px-4 py-2 border bg-green-500/10 border-green-500/30 text-green-500">
+                                        Verified
+                                    </span>
+                                ) : (
+                                    <span className="text-sm font-bold uppercase tracking-widest text-text-dim">
+                                        Awaiting Analysis
+                                    </span>
+                                )}
                             </div>
                             {result?.comp3_fields_detected > 0 && (
                                 <div className="flex items-center gap-2 text-[10px] text-primary bg-primary/10 px-3 py-2 rounded-lg border border-primary/20">
@@ -475,12 +465,9 @@ class InterestCalculator:
                             >
                                 <div className="space-y-3">
                                     {result.compliance_risk_factors.map((risk, i) => (
-                                        <motion.div
+                                        <div
                                             key={i}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: i * 0.1 }}
-                                            className="p-3 rounded-lg border border-red-500/20 bg-red-500/5"
+                                            className="p-3 rounded-lg border border-red-500/20 bg-red-500/5 fade-in"
                                         >
                                             <div className="flex items-start justify-between gap-2 mb-2">
                                                 <span className="text-[10px] font-bold text-red-400">{risk.regulation}</span>
@@ -497,7 +484,7 @@ class InterestCalculator:
                                             {risk.affected_lines && (
                                                 <p className="text-[9px] text-text-dim/50 mt-1">Lines: {risk.affected_lines}</p>
                                             )}
-                                        </motion.div>
+                                        </div>
                                     ))}
                                 </div>
                             </CollapsibleSection>
@@ -528,16 +515,13 @@ class InterestCalculator:
                         >
                             <div className="space-y-3">
                                 {result?.extracted_rules?.map((rule, i) => (
-                                    <motion.div
+                                    <div
                                         key={rule.id}
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.1 }}
-                                        className={`p-3 rounded-xl border transition-all ${rule.is_risk ? 'bg-primary/5 border-primary/30 animate-pulse-gold' : 'bg-background/50 border-border hover:border-text-dim/50'}`}
+                                        className={`p-3 rounded-xl border transition-all fade-in ${rule.is_risk ? 'bg-primary/5 border-primary/30' : 'bg-background/50 border-border hover:border-text-dim/50'}`}
                                     >
                                         <div className="flex items-start gap-3">
                                             {rule.is_risk ? (
-                                                <AlertTriangle className="w-4 h-4 text-primary shrink-0 mt-0.5 animate-glow-gold" />
+                                                <AlertTriangle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                                             ) : (
                                                 <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
                                             )}
@@ -553,20 +537,9 @@ class InterestCalculator:
                                                 <p className="text-[10px] text-text-dim leading-relaxed">
                                                     {rule.description}
                                                 </p>
-                                                {rule.confidence && (
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <div className="flex-1 h-1 bg-surface-highlight rounded-full overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-primary/50"
-                                                                style={{ width: `${rule.confidence * 100}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-[9px] text-text-dim">{(rule.confidence * 100).toFixed(0)}%</span>
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )) || (
                                         <div className="py-8 text-center space-y-3 opacity-20">
                                             <Filter className="w-8 h-8 mx-auto" />
@@ -579,7 +552,7 @@ class InterestCalculator:
                         {/* Quick Actions */}
                         <div className="grid grid-cols-2 gap-3 pt-2">
                             <button disabled={!result} className="py-3 bg-surface-highlight border border-border rounded-xl text-[10px] font-bold uppercase tracking-widest text-text-dim hover:text-text hover:border-text-dim transition-all disabled:opacity-30">
-                                Export Audit
+                                Export Behavioral Verification
                             </button>
                             <button disabled={!result} className="py-3 bg-surface-highlight border border-border rounded-xl text-[10px] font-bold uppercase tracking-widest text-text-dim hover:text-text hover:border-text-dim transition-all disabled:opacity-30">
                                 Push Code
@@ -609,20 +582,11 @@ const CollapsibleSection = ({ title, icon, children, defaultOpen = false, varian
                 </div>
                 {isOpen ? <ChevronUp className="w-3 h-3 text-text-dim" /> : <ChevronDown className="w-3 h-3 text-text-dim" />}
             </button>
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    >
-                        <div className="px-5 pb-5 border-t border-border/30 pt-4">
-                            {children}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <div className="collapse-panel" data-open={isOpen}>
+                <div className="px-5 pb-5 border-t border-border/30 pt-4">
+                    {children}
+                </div>
+            </div>
         </div>
     );
 };

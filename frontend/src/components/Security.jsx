@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     Building,
     MapPin,
@@ -187,23 +186,16 @@ const Security = () => {
             </div>
 
             {/* Success Notifications */}
-            <AnimatePresence>
-                {(passwordSuccess || cacheCleared || historyCleared) && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 flex items-center gap-3"
-                    >
-                        <Check className="text-green-400" size={18} />
-                        <span className="text-[11px] font-mono uppercase tracking-widest text-green-400">
-                            {passwordSuccess && 'Password updated successfully'}
-                            {cacheCleared && 'Local cache cleared successfully'}
-                            {historyCleared && 'Activity history hidden from view'}
-                        </span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {(passwordSuccess || cacheCleared || historyCleared) && (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 flex items-center gap-3 fade-in">
+                    <Check className="text-green-400" size={18} />
+                    <span className="text-[11px] font-mono uppercase tracking-widest text-green-400">
+                        {passwordSuccess && 'Password updated successfully'}
+                        {cacheCleared && 'Local cache cleared successfully'}
+                        {historyCleared && 'Activity history hidden from view'}
+                    </span>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Column 1: Profile & Identity */}
@@ -252,14 +244,8 @@ const Security = () => {
                                 label="Change Password"
                             />
 
-                            <AnimatePresence>
-                                {showPasswordForm && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="space-y-4 pt-4 border-t border-border/50"
-                                    >
+                            {showPasswordForm && (
+                                    <div className="space-y-4 pt-4 border-t border-border/50 fade-in">
                                         {/* Current Password */}
                                         <div className="relative">
                                             <input
@@ -335,9 +321,8 @@ const Security = () => {
                                                 'Update Password'
                                             )}
                                         </button>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                    </div>
+                            )}
                         </div>
                     </SettingsSection>
 
@@ -395,12 +380,9 @@ const Security = () => {
                         {showHistory && localHistory.length > 0 ? (
                             <div className="space-y-3 max-h-[500px] overflow-y-auto">
                                 {localHistory.map((log, i) => (
-                                    <motion.div
+                                    <div
                                         key={i}
-                                        initial={{ opacity: 0, x: 10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.05 }}
-                                        className="bg-background/30 border border-border/30 rounded-lg p-3 space-y-2"
+                                        className="bg-background/30 border border-border/30 rounded-lg p-3 space-y-2 fade-in"
                                     >
                                         <div className="flex items-center justify-between">
                                             <span className={`text-[10px] font-mono uppercase tracking-wider ${log.event?.includes('Failed') ? 'text-red-400' : 'text-primary/70'}`}>
@@ -411,7 +393,7 @@ const Security = () => {
                                             <span>{new Date(log.timestamp).toLocaleString()}</span>
                                             <span className="italic">{log.ip}</span>
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 ))}
                             </div>
                         ) : (
@@ -444,7 +426,7 @@ const Security = () => {
                                 All clearing operations only affect your local browser. Server-side audit logs are retained per regulatory requirements.
                             </p>
                             <p className="text-[9px] text-text-dim/50 uppercase tracking-wider">
-                                Tier-1 Governance • SOC-2 Compliant
+                                Tier-1 Governance
                             </p>
                         </div>
                     </div>

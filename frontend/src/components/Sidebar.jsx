@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
     LayoutDashboard,
     Cpu,
-    Activity,
     User,
     LogOut,
     ChevronRight
@@ -18,7 +16,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, expanded }) => {
             className={`
         w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300
         ${active
-                    ? 'bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(212,175,55,0.1)]'
+                    ? 'bg-primary/10 text-primary border border-primary/20'
                     : 'text-text-dim hover:bg-surface-highlight hover:text-text'}
       `}
         >
@@ -26,13 +24,9 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, expanded }) => {
                 <Icon size={20} strokeWidth={active ? 2.5 : 2} />
             </div>
             {expanded && (
-                <motion.span
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="text-sm font-medium whitespace-nowrap"
-                >
+                <span className="text-sm font-medium whitespace-nowrap fade-in">
                     {label}
-                </motion.span>
+                </span>
             )}
         </button>
     );
@@ -45,16 +39,15 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout }) => {
     const menuItems = [
         { id: 'vault', icon: LayoutDashboard, label: 'Vault' },
         { id: 'engine', icon: Cpu, label: 'The Engine' },
-        { id: 'intelligence', icon: Activity, label: 'Intelligence' },
         { id: 'security', icon: User, label: 'Security' },
     ];
 
     return (
-        <motion.aside
-            onHoverStart={() => setIsExpanded(true)}
-            onHoverEnd={() => setIsExpanded(false)}
-            animate={{ width: isExpanded ? 200 : 64 }}
+        <aside
+            onMouseEnter={() => setIsExpanded(true)}
+            onMouseLeave={() => setIsExpanded(false)}
             className="fixed left-0 top-0 h-screen bg-background border-r border-border z-50 flex flex-col py-6 transition-all duration-300 shadow-2xl overflow-hidden"
+            style={{ width: isExpanded ? 200 : 64 }}
         >
             {/* Top Logo & Branding */}
             <div
@@ -63,13 +56,9 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout }) => {
             >
                 <Logo className="w-8 h-8 flex-shrink-0 group-hover:scale-105 transition-transform" theme={theme} />
                 {isExpanded && (
-                    <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="ml-4 font-mono font-bold tracking-widest text-primary text-xl group-hover:text-text transition-colors"
-                    >
+                    <span className="ml-4 font-mono font-bold tracking-widest text-primary text-xl group-hover:text-text transition-colors fade-in">
                         ALETHIA
-                    </motion.span>
+                    </span>
                 )}
             </div>
 
@@ -104,12 +93,9 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout }) => {
               border border-border flex items-center
             `}
                     >
-                        <motion.div
-                            animate={{ x: theme === 'gold' ? 2 : 22 }}
-                            className={`
-                w-4 h-4 rounded-full shadow-lg
-                ${theme === 'gold' ? 'bg-primary' : 'bg-slate-400'}
-              `}
+                        <div
+                            className={`w-4 h-4 rounded-full shadow-lg ${theme === 'gold' ? 'bg-primary' : 'bg-slate-400'}`}
+                            style={{ transform: `translateX(${theme === 'gold' ? 2 : 22}px)`, transition: 'transform 150ms ease' }}
                         />
                     </div>
                 </div>
@@ -125,7 +111,7 @@ const Sidebar = ({ activeTab, setActiveTab, onLogout }) => {
                     )}
                 </button>
             </div>
-        </motion.aside>
+        </aside>
     );
 };
 

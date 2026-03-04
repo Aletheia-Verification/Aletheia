@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { Shield, Lock, Building, Globe, MapPin, Briefcase, Mail, ChevronRight } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -146,10 +145,8 @@ const LoginPage = () => {
     if (isPending) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="w-full max-w-2xl bg-surface/40 backdrop-blur-3xl border border-primary/30 rounded-3xl p-12 shadow-[0_0_50px_rgba(212,175,55,0.1)] animate-pulse-gold"
+                <div
+                    className="w-full max-w-2xl bg-surface/40 backdrop-blur-3xl border border-primary/30 rounded-3xl p-12 fade-in"
                 >
                     <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-8">
                         <Shield className="text-primary w-10 h-10" />
@@ -166,21 +163,14 @@ const LoginPage = () => {
                     >
                         Return to Authentication
                     </button>
-                </motion.div>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden font-sans">
-            <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/5 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[100px]" />
-
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-[480px] z-10"
-            >
+            <div className="w-full max-w-[480px] z-10 fade-in">
                 <div className="flex justify-center mb-8">
                     <Logo
                         className="w-16 h-16 cursor-pointer hover:opacity-80 transition-opacity"
@@ -193,13 +183,11 @@ const LoginPage = () => {
                 </h1>
 
                 <div className="flex items-center justify-center gap-2 mb-4">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                     <span className="text-[9px] font-mono tracking-widest text-green-500/80 uppercase">Alethia Engine: Online</span>
                 </div>
 
                 <div className="bg-surface/40 backdrop-blur-2xl border border-border rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-4">
                             <div className="relative group">
@@ -216,11 +204,7 @@ const LoginPage = () => {
                             </div>
 
                             {!isLogin && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    className="space-y-4 pt-2"
-                                >
+                                <div className="space-y-4 pt-2 fade-in">
                                     <div className="relative group">
                                         <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-text-dim" size={18} />
                                         <input
@@ -282,7 +266,7 @@ const LoginPage = () => {
                                             onChange={handleInputChange}
                                         />
                                     </div>
-                                </motion.div>
+                                </div>
                             )}
 
                             <div className="relative group">
@@ -300,31 +284,23 @@ const LoginPage = () => {
                         </div>
 
                         {justRegistered && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="bg-green-500/20 border border-green-500/40 text-green-400 text-xs font-mono py-4 px-6 rounded-xl text-center shadow-lg"
-                            >
+                            <div className="bg-green-500/20 border border-green-500/40 text-green-400 text-xs font-mono py-4 px-6 rounded-xl text-center shadow-lg fade-in">
                                 <div className="font-bold mb-1 uppercase">Registration Successful</div>
                                 Your credentials are under institutional review. Sign in once approved.
-                            </motion.div>
+                            </div>
                         )}
 
                         {error && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-mono py-4 px-6 rounded-xl text-center shadow-lg"
-                            >
-                                <div className="font-bold mb-1 underline uppercase">Security Breach / Access Denied</div>
+                            <div className="bg-red-500/20 border border-red-500/40 text-red-400 text-xs font-mono py-4 px-6 rounded-xl text-center shadow-lg fade-in">
+                                <div className="font-bold mb-1 underline uppercase">Invalid Credentials</div>
                                 {error}
-                            </motion.div>
+                            </div>
                         )}
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-primary text-black font-mono font-bold tracking-[0.2em] py-4 rounded-xl hover:bg-white transition-all transform hover:scale-[1.02] shadow-xl flex items-center justify-center gap-2 uppercase text-sm mt-6"
+                            className="w-full bg-primary text-black font-mono font-bold tracking-[0.2em] py-4 rounded-xl hover:bg-white transition-all shadow-xl flex items-center justify-center gap-2 uppercase text-sm mt-6"
                         >
                             {loading ? (
                                 <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
@@ -352,7 +328,7 @@ const LoginPage = () => {
                         </span>
                     </div>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 };
