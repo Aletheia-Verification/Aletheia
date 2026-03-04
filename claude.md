@@ -80,7 +80,8 @@ CobolTypes: pytest test_cobol_types.py -v (currently 14/14 passing)
 CLI: pytest test_cli.py -v (currently 12/12 passing)
 Dependency: pytest test_dependency.py -v (currently 20/20 passing)
 ExecSQL: pytest test_exec_sql.py -v (currently 13/13 passing)
-Signing: pytest test_signing.py -v (currently 11/11 passing)
+Signing: pytest test_signing.py -v (currently 19/19 passing)
+License: pytest test_license.py -v (currently 20/20 passing)
 Windows venv: "venv\Scripts\python.exe" -m pytest <file> -v
 Single test: "venv\Scripts\python.exe" -m pytest test_shadow_diff.py::TestFullPipeline::test_demo_data_zero_drift -v
 Frontend dev: cd frontend && npm run dev (port 5173)
@@ -158,8 +159,9 @@ Run: docker run -p 8000:8000 aletheia:latest
 Connected: docker run -p 8000:8000 -e ALETHEIA_MODE=connected -e OPENAI_API_KEY=sk-... aletheia:latest
 CLI batch: docker run aletheia:latest python aletheia_cli.py analyze /app/DEMO_LOAN_INTEREST.cbl
 Volumes: docker compose up (vault.db + copybooks persisted)
+License volume mount: ./license:/app/license:ro, env ALETHEIA_LICENSE_MODE=strict|grace
 
-14. FULL TEST SUITE (~230+ tests)
+14. FULL TEST SUITE (~247+ tests)
 
 test_core_logic.py: 60 tests
 test_shadow_diff.py: 29 tests
@@ -170,9 +172,10 @@ test_cobol_types.py: 14 tests
 test_cli.py: 12 tests
 test_dependency.py: 20 tests
 test_exec_sql.py: 13 tests
-test_signing.py: 11 tests
+test_signing.py: 19 tests
 test_generator_edge_cases.py: 13 tests
-Run all: pytest test_core_logic.py test_shadow_diff.py test_ebcdic.py test_copybook.py test_abend.py test_cobol_types.py test_cli.py test_dependency.py test_exec_sql.py test_signing.py test_generator_edge_cases.py -v
+test_license.py: 20 tests
+Run all: pytest test_core_logic.py test_shadow_diff.py test_ebcdic.py test_copybook.py test_abend.py test_cobol_types.py test_cli.py test_dependency.py test_exec_sql.py test_signing.py test_generator_edge_cases.py test_license.py -v
 
 15. MODULE ARCHITECTURE
 
@@ -188,3 +191,15 @@ Satellite modules (vault.py, shadow_diff.py, copybook_resolver.py) all follow th
 POST /engine/analyze-batch accepts multiple COBOL files + copybooks, processes in topological order
 Cross-file CALL resolution injected as audit documentation blocks
 Combined AND-gate verdict: all files must pass for batch VERIFIED
+
+17. LICENSE SYSTEM
+
+license_manager.py validates RSA-PSS signed license files (license/license.json + license/license.sig)
+Modes via ALETHEIA_LICENSE_MODE env var: strict (hard block on invalid/expired) or grace (warns, allows operation)
+Feature flags: per-license enabled features checked via require_feature()
+Daily analysis limits: tracked per-license, resets daily
+Master key pair in aletheia_keys/ (license_master_private.pem + license_master_public.pem)
+tools/generate_license.py — internal CLI for generating signed license files
+License files in license/ directory
+Depends(require_valid_license) on /engine/analyze and /engine/analyze-batch
+20 tests in test_license.py
