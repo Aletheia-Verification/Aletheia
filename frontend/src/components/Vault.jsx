@@ -1,522 +1,733 @@
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-    FileCode,
-    ChevronDown,
-    Search,
-    MessageSquare,
-    Copy,
+    Lock,
     Download,
-    RefreshCw,
+    Eye,
+    Trash2,
+    Copy,
+    X,
+    ChevronUp,
+    ChevronDown,
+    FileCode,
     CheckCircle,
+    AlertTriangle,
+    ArrowRight,
     ShieldCheck,
-    AlertTriangle
 } from 'lucide-react';
-import ExplanationChat from './ExplanationChat';
 import { apiUrl } from '../config/api';
-import { formatVaultDate } from '../utils/dateFormat';
-import { generateForensicPDF } from '../utils/pdfExport';
+import { generateForensicPDF, generateVaultExportPDF } from '../utils/pdfExport';
 
-const ConfidenceBadge = ({ level }) => {
-    if (!level) return null;
-    const cfg = {
-        VERIFIED: 'text-green-400 bg-green-500/10 border-green-500/30',
-        PROBABLE: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-        UNCERTAIN: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
-        UNRELIABLE: 'text-red-400 bg-red-500/10 border-red-500/30',
-    };
+// ── Colors (same as Engine.jsx) ──────────────────────────────────────
+const C = {
+    navy: '#1B2A4A',
+    text: '#1A1A2E',
+    body: '#2D2D3D',
+    muted: '#5A5A6E',
+    faint: '#6B7280',
+    border: '#E5E7EB',
+    bg: '#FFFFFF',
+    bgAlt: '#F8F9FA',
+    green: '#16A34A',
+    greenBg: '#F0FDF4',
+    greenBorder: '#BBF7D0',
+    amber: '#D97706',
+    amberBg: '#FFFBEB',
+    amberBorder: '#FDE68A',
+    red: '#DC2626',
+    redBg: '#FEF2F2',
+    gold: '#C9A84C',
+};
+
+// ── Date formatter ───────────────────────────────────────────────────
+const formatDate = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short',
+    }).format(d);
+};
+
+// ── Status badge ─────────────────────────────────────────────────────
+const StatusBadge = ({ status }) => {
+    const verified = status === 'VERIFIED';
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider border ${cfg[level] || cfg.UNCERTAIN}`}>
-            {level}
+        <span
+            className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] rounded-sm"
+            style={{
+                color: verified ? '#2E7D32' : C.amber,
+                backgroundColor: verified ? '#E8F5E9' : C.amberBg,
+                border: `1px solid ${verified ? '#C8E6C9' : C.amberBorder}`,
+            }}
+        >
+            {verified
+                ? <CheckCircle size={11} strokeWidth={2} />
+                : <AlertTriangle size={11} strokeWidth={2} />
+            }
+            {verified ? 'Verified' : 'Manual Review'}
         </span>
     );
 };
 
-// Fallback mock data when API isn't available
-const MOCK_CONVERSIONS = [
-    {
-        id: '1',
-        filename: 'INTR-CALC-3270.cbl',
-        created_at: '2026-01-28T14:32:00Z',
-        conversion_type: 'COBOL \u2192 Python 3.12',
-        cobol_source: `       IDENTIFICATION DIVISION.
-       PROGRAM-ID. INTR-CALC.
-       DATA DIVISION.
-       WORKING-STORAGE SECTION.
-       01 WS-PRINCIPAL    PIC 9(9)V99.
-       01 WS-RATE         PIC 9(2)V9(4).
-       01 WS-INTEREST     PIC 9(9)V99.`,
-        python_output: `from decimal import Decimal, ROUND_HALF_UP
+// ── Sortable column header ───────────────────────────────────────────
+const SortHeader = ({ label, sortKey: sk, currentKey, currentDir, onSort }) => {
+    const active = currentKey === sk;
+    return (
+        <th
+            className="px-4 py-3 cursor-pointer select-none text-left"
+            onClick={() => onSort(sk)}
+        >
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em]"
+                style={{ color: active ? C.navy : C.faint }}
+            >
+                {label}
+                {active && (currentDir === 'asc'
+                    ? <ChevronUp size={12} />
+                    : <ChevronDown size={12} />
+                )}
+            </span>
+        </th>
+    );
+};
 
-def calculate_interest(principal: Decimal, rate: Decimal) -> Decimal:
-    """Calculate interest with COBOL-equivalent precision."""
-    interest = principal * rate
-    return interest.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)`
-    },
-    {
-        id: '2',
-        filename: 'ACCT-BALANCE-2100.cbl',
-        created_at: '2026-01-27T09:15:00Z',
-        conversion_type: 'COBOL \u2192 Python 3.12',
-        cobol_source: `       IDENTIFICATION DIVISION.
-       PROGRAM-ID. ACCT-BAL.`,
-        python_output: `from decimal import Decimal
+// ── Column header (non-sortable) ─────────────────────────────────────
+const ColHeader = ({ label }) => (
+    <th className="px-4 py-3 text-center">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: C.faint }}>
+            {label}
+        </span>
+    </th>
+);
 
-def get_account_balance(account_id: str) -> Decimal:
-    """Retrieve account balance."""
-    pass`
-    },
-    {
-        id: '3',
-        filename: 'LOAN-PROC-1985.cbl',
-        created_at: '2026-01-25T16:48:00Z',
-        conversion_type: 'COBOL \u2192 Python 3.12',
-        cobol_source: '',
-        python_output: ''
-    }
-];
+// ═════════════════════════════════════════════════════════════════════
+// VAULT COMPONENT
+// ═════════════════════════════════════════════════════════════════════
 
-const Vault = () => {
-    const [conversions, setConversions] = useState([]);
-    const [expandedId, setExpandedId] = useState(null);
-    const [showChat, setShowChat] = useState(false);
-    const [selectedConversion, setSelectedConversion] = useState(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filterBy, setFilterBy] = useState('all'); // 'all' | 'passed' | 'review'
-    const [sortBy, setSortBy] = useState('date-desc'); // 'date-desc' | 'date-asc' | 'name' | 'confidence'
+const Vault = ({ onNavigate }) => {
+    const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [sortKey, setSortKey] = useState('timestamp');
+    const [sortDir, setSortDir] = useState('desc');
+    const [selectedRecord, setSelectedRecord] = useState(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
+    const [copySuccess, setCopySuccess] = useState(false);
+    const [verifyResult, setVerifyResult] = useState(null);
+    const [verifying, setVerifying] = useState(false);
 
-    useEffect(() => {
-        const fetchConversions = async () => {
-            try {
-                const token = localStorage.getItem('alethia_token');
-                const response = await fetch(apiUrl('/vault'), {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    const sessions = data.analyses || [];
-                    if (sessions.length > 0) {
-                        setConversions(sessions);
-                    } else {
-                        setConversions(MOCK_CONVERSIONS);
-                    }
-                } else {
-                    setConversions(MOCK_CONVERSIONS);
-                }
-            } catch {
-                setConversions(MOCK_CONVERSIONS);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchConversions();
+    // ── Fetch records ────────────────────────────────────────────────
+    const fetchRecords = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const token = localStorage.getItem('alethia_token');
+            const res = await fetch(apiUrl('/vault/list'), {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            setRecords(data.records || []);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
-    const handleToggleExpand = (id) => {
-        setExpandedId(expandedId === id ? null : id);
+    useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+    // ── Stats ────────────────────────────────────────────────────────
+    const stats = useMemo(() => {
+        const total = records.length;
+        const verified = records.filter(r => r.verification_status === 'VERIFIED').length;
+        const review = total - verified;
+        const criticalRisks = records.reduce((sum, r) => sum + (r.arithmetic_critical || 0), 0);
+        return { total, verified, review, criticalRisks };
+    }, [records]);
+
+    // ── Sorted records ───────────────────────────────────────────────
+    const sorted = useMemo(() => {
+        const arr = [...records];
+        arr.sort((a, b) => {
+            let va = a[sortKey], vb = b[sortKey];
+            if (sortKey === 'timestamp') {
+                va = new Date(va || 0).getTime();
+                vb = new Date(vb || 0).getTime();
+            }
+            if (typeof va === 'string') va = va.toLowerCase();
+            if (typeof vb === 'string') vb = vb.toLowerCase();
+            if (va < vb) return sortDir === 'asc' ? -1 : 1;
+            if (va > vb) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return arr;
+    }, [records, sortKey, sortDir]);
+
+    // ── Sort handler ─────────────────────────────────────────────────
+    const handleSort = (key) => {
+        if (sortKey === key) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir('desc');
+        }
     };
 
-    const handleOpenChat = (conversion) => {
-        setSelectedConversion(conversion);
-        setShowChat(true);
+    // ── View detail ──────────────────────────────────────────────────
+    const handleView = async (id) => {
+        setDetailLoading(true);
+        try {
+            const token = localStorage.getItem('alethia_token');
+            const res = await fetch(apiUrl(`/vault/record/${id}`), {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            setSelectedRecord(data);
+            setVerifyResult(null);
+        } catch (err) {
+            console.error('Failed to load record:', err);
+        } finally {
+            setDetailLoading(false);
+        }
     };
 
-    const handleExportPDF = (conversion) => {
+    // ── Delete ───────────────────────────────────────────────────────
+    const handleDelete = async (id) => {
+        try {
+            const token = localStorage.getItem('alethia_token');
+            await fetch(apiUrl(`/vault/record/${id}`), {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setDeleteConfirm(null);
+            setRecords(prev => prev.filter(r => r.id !== id));
+        } catch (err) {
+            console.error('Delete failed:', err);
+        }
+    };
+
+    // ── Export all as PDF ────────────────────────────────────────────
+    const handleExport = () => {
+        generateVaultExportPDF(records);
+    };
+
+    // ── Copy python ──────────────────────────────────────────────────
+    const handleCopyPython = (code) => {
+        if (!code) return;
+        navigator.clipboard.writeText(code);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+    };
+
+    // ── Verify signature ─────────────────────────────────────────────
+    const handleVerify = async (recordId) => {
+        setVerifying(true);
+        setVerifyResult(null);
+        try {
+            const token = localStorage.getItem('alethia_token');
+            const res = await fetch(apiUrl('/verify'), {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ record_id: recordId }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            setVerifyResult(data);
+        } catch (err) {
+            setVerifyResult({ valid: false, details: err.message });
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    // ── Re-export PDF ────────────────────────────────────────────────
+    const handleReexportPDF = (record) => {
+        let report = {};
+        try {
+            report = JSON.parse(record.full_report_json || '{}');
+        } catch { /* empty */ }
+        const v = report.verification || {};
         generateForensicPDF({
-            filename: conversion.filename || 'analysis.cbl',
-            date: conversion.created_at ? new Date(conversion.created_at).toLocaleString() : new Date().toLocaleString(),
+            filename: record.filename,
+            date: formatDate(record.timestamp),
             analyst: localStorage.getItem('corporate_id') || 'Unknown',
-            confidence: conversion.audit?.level || 'N/A',
-            summary: conversion.executive_summary || conversion.executive_explanation || '',
-            cobolCode: conversion.cobol_source || '',
-            pythonCode: conversion.python_output || conversion.python_implementation || '',
-            mathBreakdown: conversion.mathematical_breakdown || '',
-            findings: conversion.findings || [],
-            uncertainties: conversion.uncertainties || [],
-            audit: conversion.audit || null,
+            confidence: record.verification_status || 'N/A',
+            summary: record.executive_summary || v.executive_summary || '',
+            cobolCode: report.parser_output?.raw_cobol || '(not stored)',
+            pythonCode: record.generated_python || '',
+            mathBreakdown: (v.business_logic || []).map(b => `${b.title}: ${b.formula}`).join('\n'),
+            findings: (v.checklist || []).map(c => ({
+                ref_id: c.status,
+                identified_problem: c.item,
+                verification_note: c.note,
+            })),
+            uncertainties: (v.human_review_items || []).map(h => ({
+                category: h.severity,
+                description: h.item,
+                risk_if_wrong: h.reason,
+            })),
+            signature: record.signature ? {
+                signature: record.signature,
+                public_key_fingerprint: record.public_key_fp,
+                algorithm: 'RSA-PSS-SHA256',
+                verification_chain: (() => { try { return JSON.parse(record.verification_chain || '{}'); } catch { return {}; } })(),
+            } : null,
         });
     };
 
-    // Stats calculation
-    const stats = useMemo(() => {
-        const total = conversions.length;
-        const passed = conversions.filter(c => c.audit?.passed || c.audit?.level === 'VERIFIED').length;
-        const review = total - passed;
-        const thisWeek = conversions.filter(c => {
-            if (!c.created_at) return false;
-            const date = new Date(c.created_at);
-            const weekAgo = new Date();
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            return date >= weekAgo;
-        }).length;
-        return { total, passed, review, thisWeek };
-    }, [conversions]);
-
-    // Filtered & sorted conversions
-    const filteredConversions = useMemo(() => {
-        let result = [...conversions];
-
-        // Filter
-        if (filterBy === 'passed') {
-            result = result.filter(c => c.audit?.passed || c.audit?.level === 'VERIFIED');
-        } else if (filterBy === 'review') {
-            result = result.filter(c => !(c.audit?.passed || c.audit?.level === 'VERIFIED'));
-        }
-
-        // Search
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(c =>
-                (c.filename || '').toLowerCase().includes(query) ||
-                (c.executive_summary || '').toLowerCase().includes(query) ||
-                (c.executive_explanation || '').toLowerCase().includes(query)
-            );
-        }
-
-        // Sort
-        switch (sortBy) {
-            case 'date-desc':
-                result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-                break;
-            case 'date-asc':
-                result.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
-                break;
-            case 'name':
-                result.sort((a, b) => (a.filename || '').localeCompare(b.filename || ''));
-                break;
-            case 'confidence':
-                result.sort((a, b) => {
-                    const confA = parseFloat(a.audit?.confidence || 0);
-                    const confB = parseFloat(b.audit?.confidence || 0);
-                    return confB - confA;
-                });
-                break;
-        }
-
-        return result;
-    }, [conversions, filterBy, searchQuery, sortBy]);
-
-    if (loading) {
-        return (
-            <div className="p-12 flex items-center justify-center min-h-[50vh]">
-                <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-            </div>
-        );
-    }
+    // ═════════════════════════════════════════════════════════════════
+    // RENDER
+    // ═════════════════════════════════════════════════════════════════
 
     return (
-        <div className="p-12 max-w-[1000px] mx-auto">
-            {/* Header */}
-            <header className="border-b border-border pb-8 mb-8">
-                <div className="flex justify-between items-end mb-8">
-                    <div className="space-y-2">
-                        <h1 className="text-2xl font-mono font-bold tracking-[0.2em] text-text uppercase">
+        <div className="p-12 max-w-[1400px] mx-auto bg-white min-h-screen">
+
+            {/* ── Header ─────────────────────────────────────────── */}
+            <div className="flex justify-between items-end mb-8">
+                <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                        <Lock size={18} strokeWidth={1.5} style={{ color: C.navy }} />
+                        <h1 className="text-lg font-medium tracking-[0.2em] uppercase" style={{ color: C.text }}>
                             The Vault
                         </h1>
-                        <p className="text-[10px] text-text-dim uppercase tracking-[0.3em]">
-                            Analysis Repository
+                    </div>
+                    <p className="text-[11px] tracking-[0.15em] uppercase" style={{ color: C.faint }}>
+                        Behavioral Verification Trail
+                    </p>
+                </div>
+                {records.length > 0 && (
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.1em] rounded-sm transition-all"
+                        style={{ backgroundColor: C.navy, color: '#FFFFFF' }}
+                    >
+                        <Download size={14} strokeWidth={1.5} />
+                        Export All (PDF)
+                    </button>
+                )}
+            </div>
+
+            {/* ── Stats Bar ──────────────────────────────────────── */}
+            {!loading && records.length > 0 && (
+                <div className="flex items-center gap-6 px-6 py-3.5 mb-8 rounded-sm border" style={{ borderColor: C.border, backgroundColor: C.bgAlt }}>
+                    <span className="text-[12px]" style={{ color: C.body }}>
+                        <strong style={{ color: C.text }}>{stats.total}</strong> Total Analyses
+                    </span>
+                    <span style={{ color: C.border }}>|</span>
+                    <span className="text-[12px]" style={{ color: C.body }}>
+                        <strong style={{ color: C.green }}>{stats.verified}</strong> Verified
+                    </span>
+                    <span style={{ color: C.border }}>|</span>
+                    <span className="text-[12px]" style={{ color: C.body }}>
+                        <strong style={{ color: C.amber }}>{stats.review}</strong> Requires Review
+                    </span>
+                    <span style={{ color: C.border }}>|</span>
+                    <span className="text-[12px]" style={{ color: C.body }}>
+                        <strong style={{ color: C.red }}>{stats.criticalRisks}</strong> Critical Risks Found
+                    </span>
+                </div>
+            )}
+
+            {/* ── Loading ────────────────────────────────────────── */}
+            {loading && (
+                <div className="flex items-center justify-center py-24">
+                    <div className="text-center space-y-3">
+                        <div className="inline-block w-8 h-8 border-2 rounded-full animate-spin"
+                            style={{ borderColor: C.border, borderTopColor: C.navy }} />
+                        <p className="text-[11px] tracking-wider uppercase" style={{ color: C.faint }}>
+                            Loading vault records...
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" size={14} />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search..."
-                                className="bg-surface border border-border pl-10 pr-4 py-2.5 text-[11px] font-mono tracking-wider
-                                         focus:border-primary/50 outline-none transition-all w-56"
-                            />
-                        </div>
-                        {/* Filter */}
-                        <select
-                            value={filterBy}
-                            onChange={(e) => setFilterBy(e.target.value)}
-                            className="bg-surface border border-border px-4 py-2.5 text-[11px] font-mono tracking-wider
-                                     focus:border-primary/50 outline-none transition-all cursor-pointer"
-                        >
-                            <option value="all">All Analyses</option>
-                            <option value="passed">✓ Passed Only</option>
-                            <option value="review">⚠ Needs Review</option>
-                        </select>
-                        {/* Sort */}
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            className="bg-surface border border-border px-4 py-2.5 text-[11px] font-mono tracking-wider
-                                     focus:border-primary/50 outline-none transition-all cursor-pointer"
-                        >
-                            <option value="date-desc">Newest First</option>
-                            <option value="date-asc">Oldest First</option>
-                            <option value="name">By Name</option>
-                            <option value="confidence">By Confidence</option>
-                        </select>
-                    </div>
                 </div>
+            )}
 
-                {/* Stats Bar */}
-                <div className="flex gap-6 p-5 bg-surface/40 border border-border">
-                    <div className="flex flex-col items-center min-w-[80px]">
-                        <span className="text-2xl font-bold text-text">{stats.total}</span>
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-text-dim">Total</span>
-                    </div>
-                    <div className="flex flex-col items-center min-w-[80px]">
-                        <span className="text-2xl font-bold" style={{color: 'var(--color-success-text)'}}>{stats.passed}</span>
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-text-dim">Passed</span>
-                    </div>
-                    <div className="flex flex-col items-center min-w-[80px]">
-                        <span className="text-2xl font-bold" style={{color: 'var(--color-warning-text)'}}>{stats.review}</span>
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-text-dim">Review</span>
-                    </div>
-                    <div className="flex flex-col items-center min-w-[80px]">
-                        <span className="text-2xl font-bold text-text">{stats.thisWeek}</span>
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-text-dim">This Week</span>
-                    </div>
+            {/* ── Error ──────────────────────────────────────────── */}
+            {error && (
+                <div className="text-center py-16 space-y-3">
+                    <AlertTriangle size={24} style={{ color: C.amber }} className="mx-auto" />
+                    <p className="text-[12px]" style={{ color: C.body }}>Failed to load vault: {error}</p>
+                    <button onClick={fetchRecords}
+                        className="text-[11px] uppercase tracking-wider px-4 py-2 rounded-sm border"
+                        style={{ color: C.navy, borderColor: C.border }}>
+                        Retry
+                    </button>
                 </div>
-            </header>
+            )}
 
-            {/* Conversions List */}
-            <div className="space-y-4">
-                {filteredConversions.length === 0 ? (
-                    <div className="py-24 text-center space-y-4">
-                        <FileCode size={32} className="mx-auto text-text-dim/20" />
-                        <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-text-dim/50">
-                            {searchQuery ? 'No matching files' : 'No conversions stored yet'}
+            {/* ── Empty State ────────────────────────────────────── */}
+            {!loading && !error && records.length === 0 && (
+                <div className="text-center py-24 space-y-6">
+                    <div className="w-16 h-16 mx-auto flex items-center justify-center border rounded-sm"
+                        style={{ borderColor: C.border }}>
+                        <Lock size={28} strokeWidth={1} style={{ color: C.faint }} />
+                    </div>
+                    <div className="space-y-2">
+                        <p className="text-[13px] font-medium" style={{ color: C.text }}>
+                            No analyses yet
                         </p>
-                        {!searchQuery && (
-                            <p className="text-[9px] font-mono text-text-dim/30 uppercase tracking-wider">
-                                Run an analysis in The Engine to populate your vault
-                            </p>
-                        )}
+                        <p className="text-[11px] tracking-wider" style={{ color: C.faint }}>
+                            Use The Engine to verify your first COBOL program.
+                        </p>
                     </div>
-                ) : (
-                    filteredConversions.map((conversion, index) => (
-                        <motion.div
-                            key={conversion.id}
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            whileHover={{ y: -2 }}
-                            transition={{ duration: 0.3, delay: index * 0.06 }}
-                            className="border border-border bg-surface/30 hover:border-primary/30 transition-colors"
+                    {onNavigate && (
+                        <button
+                            onClick={() => onNavigate('engine')}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-[11px] font-semibold uppercase tracking-[0.1em] rounded-sm"
+                            style={{ backgroundColor: C.navy, color: '#FFFFFF' }}
                         >
-                            {/* Item Header */}
-                            <div
-                                onClick={() => handleToggleExpand(conversion.id)}
-                                className="flex items-center justify-between p-5 cursor-pointer group"
+                            Go to The Engine
+                            <ArrowRight size={14} strokeWidth={1.5} />
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* ── Table ──────────────────────────────────────────── */}
+            {!loading && !error && records.length > 0 && (
+                <div className="border rounded-sm overflow-hidden" style={{ borderColor: C.border }}>
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr style={{ backgroundColor: C.bgAlt, borderBottom: `1px solid ${C.border}` }}>
+                                <SortHeader label="Date" sortKey="timestamp" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                                <SortHeader label="Filename" sortKey="filename" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                                <SortHeader label="Status" sortKey="verification_status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                                <ColHeader label="Paras" />
+                                <ColHeader label="Vars" />
+                                <ColHeader label="COMP-3" />
+                                <ColHeader label="Risks (S/W/C)" />
+                                <ColHeader label="Flags" />
+                                <ColHeader label="Checklist" />
+                                <ColHeader label="Signed" />
+                                <ColHeader label="Actions" />
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {sorted.map((r, i) => (
+                                <tr
+                                    key={r.id}
+                                    className="group transition-colors"
+                                    style={{
+                                        backgroundColor: i % 2 === 0 ? C.bg : C.bgAlt,
+                                        borderBottom: `1px solid ${C.border}`,
+                                    }}
+                                >
+                                    <td className="px-3 py-2 text-[11px] font-mono whitespace-nowrap" style={{ color: C.body }}>
+                                        {formatDate(r.timestamp)}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <span className="flex items-center gap-2 text-[13px] font-medium" style={{ color: C.text }}>
+                                            <FileCode size={13} strokeWidth={1.5} style={{ color: C.faint }} />
+                                            {r.filename}
+                                        </span>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <StatusBadge status={r.verification_status} />
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-[13px] font-mono" style={{ color: C.body }}>
+                                        {r.paragraphs_count}
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-[13px] font-mono" style={{ color: C.body }}>
+                                        {r.variables_count}
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-[13px] font-mono" style={{ color: C.body }}>
+                                        {r.comp3_count}
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-[13px] font-mono whitespace-nowrap">
+                                        <span style={{ color: C.green }}>{r.arithmetic_safe}</span>
+                                        <span style={{ color: C.faint }}>/</span>
+                                        <span style={{ color: C.amber }}>{r.arithmetic_warn}</span>
+                                        <span style={{ color: C.faint }}>/</span>
+                                        <span style={{ color: C.red }}>{r.arithmetic_critical}</span>
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-[13px] font-mono" style={{ color: r.human_review_flags > 0 ? C.amber : C.body }}>
+                                        {r.human_review_flags}
+                                    </td>
+                                    <td className="px-3 py-2 text-center text-[13px] font-mono" style={{ color: C.body }}>
+                                        <span style={{ color: r.checklist_pass === r.checklist_total ? C.green : C.amber }}>
+                                            {r.checklist_pass}
+                                        </span>
+                                        /{r.checklist_total}
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                        {r.signature ? (
+                                            <ShieldCheck size={15} strokeWidth={1.5} style={{ color: C.green }} className="mx-auto" title="Cryptographically Signed" />
+                                        ) : (
+                                            <Lock size={14} strokeWidth={1.5} style={{ color: C.faint }} className="mx-auto" title="Not Signed" />
+                                        )}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => handleView(r.id)}
+                                                className="p-1.5 rounded-sm transition-colors hover:bg-gray-100"
+                                                title="View full report"
+                                            >
+                                                <Eye size={14} strokeWidth={1.5} style={{ color: C.navy }} />
+                                            </button>
+                                            <button
+                                                onClick={() => setDeleteConfirm(r)}
+                                                className="p-1.5 rounded-sm transition-colors hover:bg-red-50"
+                                                title="Delete record"
+                                            >
+                                                <Trash2 size={14} strokeWidth={1.5} style={{ color: C.faint }} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* ── Delete Confirmation ────────────────────────────── */}
+            {deleteConfirm && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm modal-backdrop"
+                    onClick={() => setDeleteConfirm(null)}
+                >
+                    <div
+                        className="bg-white p-8 max-w-md w-full mx-4 border shadow-lg rounded-sm fade-in"
+                        style={{ borderColor: C.border }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="text-[14px] font-semibold mb-2" style={{ color: C.text }}>
+                            Delete Analysis Record?
+                        </h3>
+                        <p className="text-[12px] mb-6" style={{ color: C.body }}>
+                            This will permanently remove the verification record for <strong>{deleteConfirm.filename}</strong>. This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-sm border"
+                                style={{ color: C.body, borderColor: C.border }}
                             >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDelete(deleteConfirm.id)}
+                                className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-sm"
+                                style={{ backgroundColor: C.red, color: '#FFFFFF' }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Detail Modal ────────────────────────────────────── */}
+            {selectedRecord && (
+                <div
+                    className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 backdrop-blur-sm overflow-y-auto py-8 modal-backdrop"
+                    onClick={() => setSelectedRecord(null)}
+                >
+                    <div
+                        className="bg-white w-full max-w-3xl mx-4 border shadow-xl rounded-sm fade-in"
+                        style={{ borderColor: C.border }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between px-8 py-5 border-b" style={{ borderColor: C.border }}>
                                 <div className="flex items-center gap-4">
-                                    <FileCode size={18} className="text-primary/70" />
+                                    <ShieldCheck size={20} strokeWidth={1.5} style={{ color: C.navy }} />
                                     <div>
-                                        <div className="text-sm font-mono font-medium text-text tracking-wide">
-                                            {conversion.filename}
-                                        </div>
-                                        <div className="flex items-center gap-3 mt-1">
-                                            <span className="text-[10px] font-mono text-text-dim uppercase tracking-wider">
-                                                {conversion.conversion_type || 'COBOL \u2192 Python'}
-                                            </span>
-                                            <span className="text-text-dim/30">&middot;</span>
-                                            <span className="text-[10px] font-mono text-text-dim/70">
-                                                {formatVaultDate(conversion.created_at, 'relative')}
-                                            </span>
-                                            {conversion.audit?.level && (
-                                                <>
-                                                    <span className="text-text-dim/30">&middot;</span>
-                                                    <ConfidenceBadge level={conversion.audit.level} />
-                                                </>
-                                            )}
-                                        </div>
+                                        <h2 className="text-[14px] font-semibold tracking-[0.1em] uppercase" style={{ color: C.text }}>
+                                            {selectedRecord.filename}
+                                        </h2>
+                                        <p className="text-[10px] mt-0.5 font-mono" style={{ color: C.faint }}>
+                                            {formatDate(selectedRecord.timestamp)} &middot; SHA-256: {selectedRecord.file_hash?.slice(0, 16)}...
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    {/* Action buttons */}
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleOpenChat(conversion); }}
-                                        className="p-2 text-text-dim hover:text-primary transition-colors"
-                                        title="Ask about this conversion"
-                                    >
-                                        <MessageSquare size={14} />
+                                    <StatusBadge status={selectedRecord.verification_status} />
+                                    <button onClick={() => setSelectedRecord(null)}
+                                        className="p-2 rounded-sm hover:bg-gray-100 transition-colors">
+                                        <X size={18} strokeWidth={1.5} style={{ color: C.faint }} />
                                     </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleExportPDF(conversion); }}
-                                        className="p-2 text-text-dim hover:text-primary transition-colors"
-                                        title="Export PDF"
-                                    >
-                                        <Download size={14} />
-                                    </button>
-                                    <ChevronDown
-                                        size={16}
-                                        className={`text-text-dim transition-transform duration-200 ${expandedId === conversion.id ? 'rotate-180' : ''}`}
-                                    />
                                 </div>
                             </div>
 
-                            {/* Expanded Content */}
-                            <AnimatePresence>
-                            {expandedId === conversion.id && (() => {
-                                const executiveText =
-                                    (typeof conversion.executive_summary === 'string' && conversion.executive_summary.trim()) ||
-                                    (typeof conversion.executive_explanation === 'string' && conversion.executive_explanation.trim()) ||
-                                    '';
+                            {/* Modal Body */}
+                            <div className="px-8 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
 
-                                const logicalRaw = conversion.logical_flow_summary;
-                                const logicalSteps = Array.isArray(logicalRaw)
-                                    ? logicalRaw.filter((step) => typeof step === 'string' && step.trim())
-                                    : typeof logicalRaw === 'string'
-                                        ? logicalRaw
-                                            .split('\n')
-                                            .map((line) => line.trim())
-                                            .filter((line) => line)
-                                        : [];
+                                {/* Executive Summary */}
+                                {selectedRecord.executive_summary && (
+                                    <div>
+                                        <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-2" style={{ color: C.navy }}>
+                                            Executive Summary
+                                        </h3>
+                                        <p className="text-[12px] leading-relaxed" style={{ color: C.body }}>
+                                            {selectedRecord.executive_summary}
+                                        </p>
+                                    </div>
+                                )}
 
-                                const pythonSource =
-                                    (typeof conversion.python_output === 'string' && conversion.python_output) ||
-                                    (typeof conversion.python_implementation === 'string' && conversion.python_implementation) ||
-                                    '';
-
-                                const commentaryRaw = conversion.code_commentary;
-                                const commentaryBlocks = Array.isArray(commentaryRaw)
-                                    ? commentaryRaw.filter((block) => typeof block === 'string' && block.trim())
-                                    : typeof commentaryRaw === 'string' && commentaryRaw.trim()
-                                        ? [commentaryRaw]
-                                        : [];
-
-                                const hasExecutive = Boolean(executiveText);
-                                const hasLogical = logicalSteps.length > 0;
-                                const hasPython = Boolean(pythonSource);
-                                const hasCommentary = commentaryBlocks.length > 0;
-
-                                if (!hasExecutive && !hasLogical && !hasPython && !hasCommentary) {
-                                    return null;
-                                }
-
-                                const handleCopyPython = () => {
-                                    if (!hasPython) return;
-                                    navigator.clipboard.writeText(pythonSource);
-                                };
-
-                                return (
-                                    <motion.div
-                                        key={`expanded-${conversion.id}`}
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.25, ease: [0.33, 1, 0.68, 1] }}
-                                        className="overflow-hidden"
-                                    >
-                                    <div className="px-5 pb-6 pt-4 border-t border-border/50 bg-background/40">
-                                        {/* Date detail */}
-                                        <div className="mb-4 text-[9px] font-mono text-text-dim/50 uppercase tracking-wider">
-                                            {formatVaultDate(conversion.created_at, 'full')}
+                                {/* Stats Grid */}
+                                <div className="grid grid-cols-5 gap-4">
+                                    {[
+                                        { label: 'Paragraphs', value: selectedRecord.paragraphs_count },
+                                        { label: 'Variables', value: selectedRecord.variables_count },
+                                        { label: 'COMP-3', value: selectedRecord.comp3_count },
+                                        { label: 'Python Size', value: `${(selectedRecord.python_chars || 0).toLocaleString()} chars` },
+                                        { label: 'Checklist', value: `${selectedRecord.checklist_pass}/${selectedRecord.checklist_total}`, color: selectedRecord.checklist_pass === selectedRecord.checklist_total ? C.green : C.amber },
+                                    ].map(s => (
+                                        <div key={s.label} className="px-4 py-3 border rounded-sm" style={{ borderColor: C.border, backgroundColor: C.bgAlt }}>
+                                            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: C.faint }}>{s.label}</p>
+                                            <p className="text-[16px] font-semibold font-mono" style={{ color: s.color || C.text }}>{s.value}</p>
                                         </div>
+                                    ))}
+                                </div>
 
-                                        {/* 1. Executive Explanation */}
-                                        {hasExecutive && (
-                                            <section className="space-y-2">
-                                                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-text-dim">
-                                                    Executive Explanation
-                                                </h3>
-                                                <p className="text-sm text-text leading-relaxed whitespace-pre-wrap">
-                                                    {executiveText}
-                                                </p>
-                                            </section>
-                                        )}
-
-                                        {/* 2. Logical Flow Summary */}
-                                        {hasLogical && (
-                                            <section className={`space-y-2 ${hasExecutive ? 'mt-6 pt-6 border-t border-border/40' : ''}`}>
-                                                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-text-dim">
-                                                    Logical Flow Summary
-                                                </h3>
-                                                <ol className="list-decimal ml-5 space-y-1 text-sm text-text leading-relaxed">
-                                                    {logicalSteps.map((step, index) => (
-                                                        <li key={index} className="whitespace-pre-wrap">
-                                                            {step}
-                                                        </li>
-                                                    ))}
-                                                </ol>
-                                            </section>
-                                        )}
-
-                                        {/* 3. Python Translation */}
-                                        {hasPython && (
-                                            <section
-                                                className={`space-y-3 ${
-                                                    hasExecutive || hasLogical ? 'mt-6 pt-6 border-t border-border/40' : ''
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-text-dim">
-                                                        Python Translation
-                                                    </h3>
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleCopyPython}
-                                                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[9px] font-mono uppercase tracking-widest border border-border hover:border-primary/60 hover:text-primary transition-colors"
-                                                    >
-                                                        <Copy size={12} />
-                                                        Copy Python
-                                                    </button>
-                                                </div>
-                                                <pre className="bg-background border border-border p-4 text-[11px] font-mono text-text/80 whitespace-pre-wrap break-words">
-                                                    <code>{pythonSource}</code>
-                                                </pre>
-                                            </section>
-                                        )}
-
-                                        {/* 4. Code Commentary */}
-                                        {hasCommentary && (
-                                            <section className="mt-6 pt-6 border-t border-border/40 space-y-2">
-                                                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-text-dim">
-                                                    Code Commentary
-                                                </h3>
-                                                <div className="space-y-2 text-sm text-text leading-relaxed">
-                                                    {commentaryBlocks.map((block, index) => (
-                                                        <p key={index} className="whitespace-pre-wrap">
-                                                            {block}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            </section>
+                                {/* Arithmetic Risks */}
+                                <div>
+                                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-2" style={{ color: C.navy }}>
+                                        Arithmetic Risks
+                                    </h3>
+                                    <div className="flex gap-4">
+                                        {[
+                                            { label: 'Safe', value: selectedRecord.arithmetic_safe, color: C.green, bg: C.greenBg },
+                                            { label: 'Warning', value: selectedRecord.arithmetic_warn, color: C.amber, bg: C.amberBg },
+                                            { label: 'Critical', value: selectedRecord.arithmetic_critical, color: C.red, bg: C.redBg },
+                                        ].map(r => (
+                                            <div key={r.label} className="flex items-center gap-2 px-4 py-2 rounded-sm text-[12px] font-mono font-semibold"
+                                                style={{ backgroundColor: r.bg, color: r.color }}>
+                                                {r.value} {r.label}
+                                            </div>
+                                        ))}
+                                        {selectedRecord.human_review_flags > 0 && (
+                                            <div className="flex items-center gap-2 px-4 py-2 rounded-sm text-[12px] font-mono font-semibold"
+                                                style={{ backgroundColor: C.amberBg, color: C.amber }}>
+                                                {selectedRecord.human_review_flags} Review Flags
+                                            </div>
                                         )}
                                     </div>
-                                    </motion.div>
-                                );
-                            })()}
-                            </AnimatePresence>
-                        </motion.div>
-                    ))
-                )}
-            </div>
+                                </div>
 
-            {/* Footer */}
-            <footer className="mt-16 pt-8 border-t border-border flex justify-between items-center text-[9px] font-mono uppercase tracking-[0.2em] text-text-dim/40">
-                <div className="flex gap-8">
-                    <span>SOC-2 Type II</span>
-                    <span>PCI-DSS</span>
-                    <span>GDPR</span>
-                </div>
-                <div>
-                    Institutional Access Only
-                </div>
-            </footer>
+                                {/* Cryptographic Verification */}
+                                <div>
+                                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em] mb-2" style={{ color: C.navy }}>
+                                        Cryptographic Verification
+                                    </h3>
+                                    {selectedRecord.signature ? (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em] rounded-sm"
+                                                    style={{ color: C.green, backgroundColor: C.greenBg, border: `1px solid ${C.greenBorder}` }}>
+                                                    <ShieldCheck size={11} strokeWidth={2} />
+                                                    Signed
+                                                </span>
+                                                <span className="text-[10px] font-mono" style={{ color: C.faint }}>
+                                                    {selectedRecord.public_key_fp?.slice(0, 24)}...
+                                                </span>
+                                            </div>
+                                            {(() => {
+                                                let chain = {};
+                                                try { chain = JSON.parse(selectedRecord.verification_chain || '{}'); } catch { /* empty */ }
+                                                return chain.chain_hash ? (
+                                                    <div className="px-4 py-3 border rounded-sm font-mono text-[10px]"
+                                                        style={{ borderColor: C.border, backgroundColor: C.bgAlt, color: C.body }}>
+                                                        <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: C.faint }}>Chain Hash: </span>
+                                                        {chain.chain_hash.slice(0, 32)}...
+                                                    </div>
+                                                ) : null;
+                                            })()}
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => handleVerify(selectedRecord.id)}
+                                                    disabled={verifying}
+                                                    className="flex items-center gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider rounded-sm border transition-colors"
+                                                    style={{ color: C.navy, borderColor: C.border }}
+                                                >
+                                                    <ShieldCheck size={12} strokeWidth={1.5} />
+                                                    {verifying ? 'Verifying...' : 'Verify Signature'}
+                                                </button>
+                                                {verifyResult && (
+                                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold"
+                                                        style={{ color: verifyResult.valid ? C.green : C.red }}>
+                                                        {verifyResult.valid
+                                                            ? <><CheckCircle size={13} strokeWidth={2} /> VALID</>
+                                                            : <><AlertTriangle size={13} strokeWidth={2} /> INVALID</>
+                                                        }
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 px-4 py-3 rounded-sm border text-[11px]"
+                                            style={{ borderColor: C.border, backgroundColor: C.bgAlt, color: C.faint }}>
+                                            <Lock size={13} strokeWidth={1.5} />
+                                            No cryptographic signature — record predates signing feature
+                                        </div>
+                                    )}
+                                </div>
 
-            {/* Contextual Chat */}
-            <AnimatePresence>
-                {showChat && selectedConversion && (
-                    <ExplanationChat
-                        cobolContext={selectedConversion.cobol_source || ''}
-                        pythonContext={selectedConversion.python_output || selectedConversion.python_implementation || ''}
-                        context="vault"
-                        onClose={() => {
-                            setShowChat(false);
-                            setSelectedConversion(null);
-                        }}
-                    />
-                )}
-            </AnimatePresence>
+                                {/* Generated Python */}
+                                {selectedRecord.generated_python && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: C.navy }}>
+                                                Verification Model
+                                            </h3>
+                                            <button
+                                                onClick={() => handleCopyPython(selectedRecord.generated_python)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded-sm border transition-colors"
+                                                style={{
+                                                    color: copySuccess ? C.green : C.navy,
+                                                    borderColor: copySuccess ? C.greenBorder : C.border,
+                                                    backgroundColor: copySuccess ? C.greenBg : C.bg,
+                                                }}
+                                            >
+                                                <Copy size={12} strokeWidth={1.5} />
+                                                {copySuccess ? 'Copied' : 'Copy'}
+                                            </button>
+                                        </div>
+                                        <pre className="p-4 rounded-sm border overflow-x-auto text-[11px] leading-relaxed font-mono max-h-[400px] overflow-y-auto"
+                                            style={{ backgroundColor: C.bgAlt, borderColor: C.border, color: C.text }}>
+                                            {selectedRecord.generated_python}
+                                        </pre>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="flex justify-end gap-3 px-8 py-4 border-t" style={{ borderColor: C.border }}>
+                                <button
+                                    onClick={() => handleReexportPDF(selectedRecord)}
+                                    className="flex items-center gap-2 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.1em] rounded-sm border transition-colors"
+                                    style={{ color: C.navy, borderColor: C.border }}
+                                >
+                                    <Download size={14} strokeWidth={1.5} />
+                                    Re-export PDF
+                                </button>
+                                <button
+                                    onClick={() => setSelectedRecord(null)}
+                                    className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.1em] rounded-sm"
+                                    style={{ backgroundColor: C.navy, color: '#FFFFFF' }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Detail loading overlay */}
+            {detailLoading && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+                    <div className="bg-white p-6 rounded-sm border shadow-lg" style={{ borderColor: C.border }}>
+                        <div className="inline-block w-6 h-6 border-2 rounded-full animate-spin"
+                            style={{ borderColor: C.border, borderTopColor: C.navy }} />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -109,8 +109,8 @@ const Security = () => {
             setPasswordError('New passwords do not match');
             return;
         }
-        if (passwordData.new.length < 6) {
-            setPasswordError('Password must be at least 6 characters');
+        if (passwordData.new.length < 8) {
+            setPasswordError('Password must be at least 8 characters');
             return;
         }
 
