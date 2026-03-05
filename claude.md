@@ -82,6 +82,7 @@ Dependency: pytest test_dependency.py -v (currently 20/20 passing)
 ExecSQL: pytest test_exec_sql.py -v (currently 13/13 passing)
 Signing: pytest test_signing.py -v (currently 19/19 passing)
 License: pytest test_license.py -v (currently 20/20 passing)
+EdgeCases: pytest test_generator_edge_cases.py -v (currently 23/23 passing)
 Windows venv: "venv\Scripts\python.exe" -m pytest <file> -v
 Single test: "venv\Scripts\python.exe" -m pytest test_shadow_diff.py::TestFullPipeline::test_demo_data_zero_drift -v
 Frontend dev: cd frontend && npm run dev (port 5173)
@@ -161,7 +162,7 @@ CLI batch: docker run aletheia:latest python aletheia_cli.py analyze /app/DEMO_L
 Volumes: docker compose up (vault.db + copybooks persisted)
 License volume mount: ./license:/app/license:ro, env ALETHEIA_LICENSE_MODE=strict|grace
 
-14. FULL TEST SUITE (~247+ tests)
+14. FULL TEST SUITE (~257+ tests)
 
 test_core_logic.py: 60 tests
 test_shadow_diff.py: 29 tests
@@ -173,9 +174,10 @@ test_cli.py: 12 tests
 test_dependency.py: 20 tests
 test_exec_sql.py: 13 tests
 test_signing.py: 19 tests
-test_generator_edge_cases.py: 13 tests
+test_generator_edge_cases.py: 23 tests
 test_license.py: 20 tests
-Run all: pytest test_core_logic.py test_shadow_diff.py test_ebcdic.py test_copybook.py test_abend.py test_cobol_types.py test_cli.py test_dependency.py test_exec_sql.py test_signing.py test_generator_edge_cases.py test_license.py -v
+test_integration_stress.py: 9 tests
+Run all: pytest test_core_logic.py test_shadow_diff.py test_ebcdic.py test_copybook.py test_abend.py test_cobol_types.py test_cli.py test_dependency.py test_exec_sql.py test_signing.py test_generator_edge_cases.py test_license.py test_integration_stress.py -v
 
 15. MODULE ARCHITECTURE
 

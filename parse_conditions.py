@@ -30,8 +30,12 @@ def _find_variable_at_end(text, known_variables, prefix="TO"):
     return None, text
 
 
-def _resolve_value(text, known_variables):
-    """Resolve a COBOL value to Python — variable name or Decimal literal."""
+def _resolve_value(text, known_variables, string_vars=None, use_value=False):
+    """Resolve a COBOL value to Python — variable name or Decimal literal.
+
+    If use_value=True, numeric (non-string) variables get .value appended
+    for use in expressions with CobolDecimal.
+    """
     text = text.strip()
     upper = text.upper()
 
@@ -45,16 +49,30 @@ def _resolve_value(text, known_variables):
     # Known variable (case-insensitive match)
     for var in known_variables:
         if upper == var.upper():
-            return to_python_name(var)
+            py = to_python_name(var)
+            if use_value and not _is_string_operand(var, string_vars):
+                return f"{py}.value"
+            return py
 
     # Unknown but looks like a COBOL name
     if re.match(r'^[A-Z][A-Z0-9\-]*$', upper):
-        return to_python_name(text)
+        py = to_python_name(text)
+        if use_value:
+            return f"{py}.value"
+        return py
 
     return text
 
 
-def _convert_condition(condition_text, known_variables, level_88_map):
+def _is_string_operand(text, string_vars):
+    """Check if a COBOL operand refers to a PIC X/A variable."""
+    if not string_vars:
+        return False
+    upper = text.strip().upper()
+    return upper in {v.upper() for v in string_vars}
+
+
+def _convert_condition(condition_text, known_variables, level_88_map, string_vars=None):
     """Convert a COBOL condition to a Python expression."""
     issues = []
     upper = condition_text.upper().strip()
@@ -62,15 +80,23 @@ def _convert_condition(condition_text, known_variables, level_88_map):
     # 88-level condition lookup
     if upper in level_88_map:
         info = level_88_map[upper]
-        py_name = to_python_name(info["parent"])
+        parent = info["parent"]
+        py_name = to_python_name(parent)
         value = info["value"]
+        # 88-level parents are typically PIC X (string) — compare as string
+        # If the parent is numeric (not a string var), we'd need .value
+        if not _is_string_operand(parent, string_vars):
+            return f'{py_name}.value == Decimal(\'{value}\')', issues
         return f'{py_name} == "{value}"', issues
 
     # NOT + 88-level
     if upper.startswith("NOT") and upper[3:] in level_88_map:
         info = level_88_map[upper[3:]]
-        py_name = to_python_name(info["parent"])
+        parent = info["parent"]
+        py_name = to_python_name(parent)
         value = info["value"]
+        if not _is_string_operand(parent, string_vars):
+            return f'{py_name}.value != Decimal(\'{value}\')', issues
         return f'{py_name} != "{value}"', issues
 
     # NOT prefix for other conditions
@@ -87,10 +113,20 @@ def _convert_condition(condition_text, known_variables, level_88_map):
             left = condition_text[:idx]
             right = condition_text[idx + len(op_cobol):]
 
-            py_left = _resolve_value(left, known_variables)
-            py_right = _resolve_value(right, known_variables)
+            # Use .value for numeric CobolDecimal variables
+            py_left = _resolve_value(left, known_variables, string_vars=string_vars, use_value=True)
+            py_right = _resolve_value(right, known_variables, string_vars=string_vars, use_value=True)
 
-            result = f"{py_left}{op_python}{py_right}"
+            # EBCDIC-aware ordering for PIC X/A fields
+            if string_vars and op_cobol != "=" and _is_string_operand(left, string_vars):
+                # String vars don't use .value — strip it if added
+                py_left_str = _resolve_value(left, known_variables)
+                py_right_str = _resolve_value(right, known_variables)
+                ebcdic_op = {">": " > 0", "<": " < 0", ">=": " >= 0", "<=": " <= 0"}[op_cobol]
+                result = f"ebcdic_compare({py_left_str}, {py_right_str}){ebcdic_op}"
+            else:
+                result = f"{py_left}{op_python}{py_right}"
+
             if negated:
                 result = f"not ({result})"
             return result, issues
@@ -105,8 +141,13 @@ def _convert_condition(condition_text, known_variables, level_88_map):
     return f"True  # MANUAL REVIEW: {condition_text[:60]}", issues
 
 
-def _tokenize_expression(expr_text, known_variables):
-    """Tokenize a COBOL expression into Python with Decimal wrapping."""
+def _tokenize_expression(expr_text, known_variables, string_vars=None):
+    """Tokenize a COBOL expression into Python with Decimal wrapping.
+
+    Numeric variables get .value appended for CobolDecimal compatibility.
+    """
+    if string_vars is None:
+        string_vars = set()
     tokens = []
     i = 0
     text = expr_text
@@ -152,13 +193,18 @@ def _tokenize_expression(expr_text, known_variables):
                         best_match = var
 
             if best_match:
-                tokens.append(to_python_name(best_match))
+                py_name = to_python_name(best_match)
+                if not _is_string_operand(best_match, string_vars):
+                    tokens.append(f"{py_name}.value")
+                else:
+                    tokens.append(py_name)
                 i += len(best_match)
             else:
                 j = i
                 while j < len(text) and (text[j].isalnum() or text[j] == '-'):
                     j += 1
-                tokens.append(to_python_name(text[i:j]))
+                py_name = to_python_name(text[i:j])
+                tokens.append(f"{py_name}.value")
                 i = j
             continue
 
@@ -175,8 +221,8 @@ def _tokenize_expression(expr_text, known_variables):
     return re.sub(r'\s+', ' ', result).strip()
 
 
-def _convert_move(stmt_text, known_variables):
-    """Convert MOVE value TO target."""
+def _convert_move(stmt_text, known_variables, string_vars=None):
+    """Convert MOVE value TO target. Uses .store() for numeric CobolDecimal targets."""
     issues = []
     upper = stmt_text.upper()
 
@@ -197,13 +243,17 @@ def _convert_move(stmt_text, known_variables):
             return f"# MANUAL REVIEW: {stmt_text[:60]}", issues
 
     py_target = to_python_name(target)
-    py_value = _resolve_value(source, known_variables)
+    is_string_target = _is_string_operand(target, string_vars)
+    py_value = _resolve_value(source, known_variables, string_vars=string_vars, use_value=not is_string_target)
 
-    return f"{py_target} = {py_value}", issues
+    if is_string_target:
+        return f"{py_target} = {py_value}", issues
+    else:
+        return f"{py_target}.store({py_value})", issues
 
 
-def _convert_compute(stmt_text, known_variables):
-    """Convert COMPUTE target = expression."""
+def _convert_compute(stmt_text, known_variables, string_vars=None):
+    """Convert COMPUTE target = expression. Uses .store() and .value for CobolDecimal."""
     issues = []
     upper = stmt_text.upper()
 
@@ -221,13 +271,13 @@ def _convert_compute(stmt_text, known_variables):
     expr_str = remainder[eq_idx + 1:]
 
     py_target = to_python_name(target_str)
-    py_expr = _tokenize_expression(expr_str, known_variables)
+    py_expr = _tokenize_expression(expr_str, known_variables, string_vars=string_vars)
 
-    return f"{py_target} = {py_expr}", issues
+    return f"{py_target}.store({py_expr})", issues
 
 
-def _convert_add(stmt_text, known_variables):
-    """Convert ADD value TO target."""
+def _convert_add(stmt_text, known_variables, string_vars=None):
+    """Convert ADD value TO target. Uses .store() and .value for CobolDecimal."""
     issues = []
     upper = stmt_text.upper()
 
@@ -247,12 +297,12 @@ def _convert_add(stmt_text, known_variables):
             return f"# MANUAL REVIEW: {stmt_text[:60]}", issues
 
     py_target = to_python_name(target)
-    py_value = _resolve_value(source, known_variables)
+    py_value = _resolve_value(source, known_variables, string_vars=string_vars, use_value=True)
 
-    return f"{py_target} = {py_target} + {py_value}", issues
+    return f"{py_target}.store({py_target}.value + {py_value})", issues
 
 
-def _convert_single_statement(stmt_text, known_variables, level_88_map, all_conditions_by_text, indent_level):
+def _convert_single_statement(stmt_text, known_variables, level_88_map, all_conditions_by_text, indent_level, string_vars=None):
     """Convert a single COBOL statement to Python. Dispatches by type."""
     issues = []
     upper = stmt_text.upper()
@@ -264,7 +314,7 @@ def _convert_single_statement(stmt_text, known_variables, level_88_map, all_cond
         if structured:
             code, sub_issues = _convert_if_block(
                 structured, known_variables, level_88_map,
-                all_conditions_by_text, indent_level
+                all_conditions_by_text, indent_level, string_vars=string_vars
             )
             issues.extend(sub_issues)
             return code, issues
@@ -279,24 +329,36 @@ def _convert_single_statement(stmt_text, known_variables, level_88_map, all_cond
 
     # MOVE
     if upper.startswith("MOVE"):
-        code, move_issues = _convert_move(stmt_text, known_variables)
+        code, move_issues = _convert_move(stmt_text, known_variables, string_vars=string_vars)
         issues.extend(move_issues)
         if code:
             return f"{indent}{code}", issues
 
     # COMPUTE
     if upper.startswith("COMPUTE"):
-        code, comp_issues = _convert_compute(stmt_text, known_variables)
+        code, comp_issues = _convert_compute(stmt_text, known_variables, string_vars=string_vars)
         issues.extend(comp_issues)
         if code:
             return f"{indent}{code}", issues
 
     # ADD
     if upper.startswith("ADD"):
-        code, add_issues = _convert_add(stmt_text, known_variables)
+        code, add_issues = _convert_add(stmt_text, known_variables, string_vars=string_vars)
         issues.extend(add_issues)
         if code:
             return f"{indent}{code}", issues
+
+    # PERFORM (getText blob: "PERFORM1000-INIT-CALCULATION")
+    if upper.startswith("PERFORM"):
+        target_name = stmt_text[7:]
+        py_target = "para_" + to_python_name(target_name)
+        return f"{indent}{py_target}()", issues
+
+    # GO TO (getText blob: "GOTOCALC-SIMPLE")
+    if upper.startswith("GOTO"):
+        target_name = stmt_text[4:]
+        py_target = "para_" + to_python_name(target_name)
+        return f"{indent}{py_target}()  # GO TO {target_name}\n{indent}return", issues
 
     # INITIALIZE
     if upper.startswith("INITIALIZE"):
@@ -317,7 +379,7 @@ def _convert_single_statement(stmt_text, known_variables, level_88_map, all_cond
     return f"{indent}# MANUAL REVIEW: {stmt_text[:60]}", issues
 
 
-def _convert_if_block(condition_data, known_variables, level_88_map, all_conditions_by_text, indent_level=0):
+def _convert_if_block(condition_data, known_variables, level_88_map, all_conditions_by_text, indent_level=0, string_vars=None):
     """Convert a structured IF block to Python if/else."""
     issues = []
     indent = "    " * indent_level
@@ -325,7 +387,7 @@ def _convert_if_block(condition_data, known_variables, level_88_map, all_conditi
 
     # Condition
     py_cond, cond_issues = _convert_condition(
-        condition_data["condition"], known_variables, level_88_map
+        condition_data["condition"], known_variables, level_88_map, string_vars=string_vars
     )
     issues.extend(cond_issues)
     lines.append(f"{indent}if {py_cond}:")
@@ -336,7 +398,7 @@ def _convert_if_block(condition_data, known_variables, level_88_map, all_conditi
         for stmt in then_stmts:
             code, stmt_issues = _convert_single_statement(
                 stmt, known_variables, level_88_map,
-                all_conditions_by_text, indent_level + 1
+                all_conditions_by_text, indent_level + 1, string_vars=string_vars
             )
             issues.extend(stmt_issues)
             lines.append(code)
@@ -350,7 +412,7 @@ def _convert_if_block(condition_data, known_variables, level_88_map, all_conditi
         for stmt in else_stmts:
             code, stmt_issues = _convert_single_statement(
                 stmt, known_variables, level_88_map,
-                all_conditions_by_text, indent_level + 1
+                all_conditions_by_text, indent_level + 1, string_vars=string_vars
             )
             issues.extend(stmt_issues)
             lines.append(code)
@@ -358,7 +420,108 @@ def _convert_if_block(condition_data, known_variables, level_88_map, all_conditi
     return "\n".join(lines), issues
 
 
-def parse_if_statement(condition_data, known_variables, level_88_map, all_conditions=None):
+def parse_evaluate_statement(eval_data, known_variables, level_88_map, all_conditions=None, string_vars=None):
+    """
+    Convert EVALUATE/WHEN to Python if/elif/else.
+
+    Returns:
+        (python_code: str, issues: list[dict])
+    """
+    issues = []
+
+    # EVALUATE ALSO — unsupported, flag for manual review
+    if eval_data.get("has_also"):
+        issues.append({
+            "cobol": f"EVALUATE {eval_data['subject']} ALSO ...",
+            "python": "# MANUAL REVIEW",
+            "status": "fail",
+            "reason": "EVALUATE ALSO not supported",
+        })
+        return f"# MANUAL REVIEW: EVALUATE {eval_data['subject']} ALSO ...", issues
+
+    subject = eval_data.get("subject", "")
+    is_true_mode = subject.upper() == "TRUE"
+
+    # Build lookup for nested IF resolution
+    all_conditions_by_text = {}
+    if all_conditions:
+        for cond in all_conditions:
+            all_conditions_by_text[cond["statement"]] = cond
+
+    # Resolve subject for value-based mode
+    if not is_true_mode:
+        subject_is_string = _is_string_operand(subject, string_vars)
+        if subject_is_string:
+            py_subject = to_python_name(subject)
+        else:
+            py_subject = _resolve_value(subject, known_variables, string_vars=string_vars, use_value=True)
+
+    lines = []
+    first = True
+
+    for clause in eval_data.get("when_clauses", []):
+        conditions = clause.get("conditions", [])
+        body_stmts = clause.get("body_statements", [])
+
+        # Build the condition expression
+        if is_true_mode:
+            # Each condition is a boolean expression
+            parts = []
+            for cond_text in conditions:
+                py_cond, cond_issues = _convert_condition(
+                    cond_text, known_variables, level_88_map, string_vars=string_vars
+                )
+                issues.extend(cond_issues)
+                parts.append(py_cond)
+            combined = " or ".join(parts) if len(parts) > 1 else parts[0]
+        else:
+            # Each condition is a value to compare against subject
+            parts = []
+            for cond_text in conditions:
+                # Strip surrounding quotes for string literals
+                if cond_text.startswith("'") and cond_text.endswith("'"):
+                    literal = cond_text[1:-1]
+                    parts.append(f'{py_subject} == "{literal}"')
+                elif re.match(r'^-?[\d.]+$', cond_text):
+                    parts.append(f"{py_subject} == Decimal('{cond_text}')")
+                else:
+                    # Variable or complex expression
+                    py_val = _resolve_value(cond_text, known_variables, string_vars=string_vars, use_value=True)
+                    parts.append(f"{py_subject} == {py_val}")
+            combined = " or ".join(parts) if len(parts) > 1 else parts[0]
+
+        keyword = "if" if first else "elif"
+        lines.append(f"{keyword} {combined}:")
+        first = False
+
+        # Body statements
+        if body_stmts:
+            for stmt_text in body_stmts:
+                code, stmt_issues = _convert_single_statement(
+                    stmt_text, known_variables, level_88_map,
+                    all_conditions_by_text, indent_level=1, string_vars=string_vars
+                )
+                issues.extend(stmt_issues)
+                lines.append(code)
+        else:
+            lines.append("    pass")
+
+    # WHEN OTHER → else
+    when_other = eval_data.get("when_other_statements", [])
+    if when_other:
+        lines.append("else:")
+        for stmt_text in when_other:
+            code, stmt_issues = _convert_single_statement(
+                stmt_text, known_variables, level_88_map,
+                all_conditions_by_text, indent_level=1, string_vars=string_vars
+            )
+            issues.extend(stmt_issues)
+            lines.append(code)
+
+    return "\n".join(lines), issues
+
+
+def parse_if_statement(condition_data, known_variables, level_88_map, all_conditions=None, string_vars=None):
     """
     Main entry point: convert a structured IF condition to Python.
 
@@ -370,6 +533,8 @@ def parse_if_statement(condition_data, known_variables, level_88_map, all_condit
                       {"parent": str, "value": str}
         all_conditions: list of all condition dicts from the analyzer
                         (used for nested IF lookup by statement text)
+        string_vars: set of COBOL variable names that are PIC X/A
+                     (used for EBCDIC-aware ordering comparisons)
 
     Returns:
         (python_code: str, issues: list[dict])
@@ -384,7 +549,7 @@ def parse_if_statement(condition_data, known_variables, level_88_map, all_condit
 
     return _convert_if_block(
         condition_data, known_variables, level_88_map,
-        all_conditions_by_text, indent_level=0
+        all_conditions_by_text, indent_level=0, string_vars=string_vars
     )
 
 
