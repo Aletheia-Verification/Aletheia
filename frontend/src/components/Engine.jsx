@@ -173,13 +173,11 @@ const Engine = () => {
     const handleFileUpload = async (fileOrEvent) => {
         const file = fileOrEvent?.target?.files?.[0] || fileOrEvent;
         if (!file) return;
-        console.log('[Engine] File upload - name:', file.name, 'size:', file.size);
         if (file.size > MAX_FILE_SIZE) {
             setError('File exceeds 10MB limit');
             return;
         }
         const text = await file.text();
-        console.log('[Engine] File text length:', text.length);
         setCobolCode(text);
         setFileName(file.name || 'source.cbl');
         setInputMode('paste');
@@ -311,7 +309,6 @@ const Engine = () => {
                 throw new Error(errData.detail || `Analysis failed (${response.status})`);
             }
             const data = await response.json();
-            console.log('[Engine] API response:', data);
             setResult(data);
         } catch (err) {
             setError(err.message || 'Engine processing failure');

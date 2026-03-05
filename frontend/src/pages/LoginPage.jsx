@@ -28,22 +28,7 @@ const LoginPage = () => {
     // This prevents "infinite check" when 401 clears token but page hasn't unmounted
     // ═════════════════════════════════════════════════════════════════════════
     useEffect(() => {
-        // Check if auth has completed initialization
-        if (auth.isInitialized) {
-            console.group('🔐 LOGINPAGE-CHECK');
-            console.log('Initialized:', auth.isInitialized);
-            console.log('Authenticated:', auth.isAuthenticated);
-            console.log('Current location:', window.location.pathname);
-            
-            // If user is already authenticated, don't show login
-            if (auth.isAuthenticated) {
-                console.log('✅ User is authenticated - will be handled by App.jsx routing');
-                // Let App.jsx handle the routing - don't render anything
-            } else {
-                console.log('❌ Not authenticated - show login UI');
-            }
-            console.groupEnd();
-        }
+        // If user is already authenticated, App.jsx handles routing
     }, [auth.isInitialized, auth.isAuthenticated]);
 
     const handleInputChange = (e) => {
