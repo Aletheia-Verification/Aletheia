@@ -203,7 +203,7 @@ class InterestCalculator:
             const formData = new FormData();
             formData.append('file', selectedFile);
 
-            const token = localStorage.getItem('access_token');
+            const token = localStorage.getItem('alethia_token');
             if (!token) {
                 setError('No authentication token. Please log in again.');
                 setTimeout(() => onLogout(), 2000);

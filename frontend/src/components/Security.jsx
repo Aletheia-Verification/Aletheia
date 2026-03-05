@@ -8,8 +8,6 @@ import {
     Key,
     Trash2,
     Database,
-    Eye,
-    EyeOff,
     Check,
     AlertTriangle,
     RefreshCw,
@@ -18,6 +16,7 @@ import {
     Fingerprint,
     ChevronRight
 } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 const SettingsSection = ({ title, description, icon: Icon, children }) => (
     <div className="bg-surface/20 border border-border rounded-2xl overflow-hidden">
@@ -66,14 +65,6 @@ const Security = () => {
     const [showHistory, setShowHistory] = useState(true);
     const [localHistory, setLocalHistory] = useState([]);
 
-    // Password change state
-    const [showPasswordForm, setShowPasswordForm] = useState(false);
-    const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
-    const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
-    const [passwordError, setPasswordError] = useState('');
-    const [passwordSuccess, setPasswordSuccess] = useState(false);
-    const [changingPassword, setChangingPassword] = useState(false);
-
     // Action states
     const [clearingCache, setClearingCache] = useState(false);
     const [cacheCleared, setCacheCleared] = useState(false);
@@ -84,7 +75,7 @@ const Security = () => {
         const fetchProfile = async () => {
             const token = localStorage.getItem('alethia_token');
             try {
-                const response = await fetch('http://127.0.0.1:8001/auh/profile', {
+                const response = await fetch(apiUrl('/auth/profile'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {
@@ -100,31 +91,6 @@ const Security = () => {
         };
         fetchProfile();
     }, []);
-
-    const handlePasswordChange = async () => {
-        setPasswordError('');
-        setPasswordSuccess(false);
-
-        if (passwordData.new !== passwordData.confirm) {
-            setPasswordError('New passwords do not match');
-            return;
-        }
-        if (passwordData.new.length < 8) {
-            setPasswordError('Password must be at least 8 characters');
-            return;
-        }
-
-        setChangingPassword(true);
-
-        // Simulate API call (in production, this would call the backend)
-        setTimeout(() => {
-            setChangingPassword(false);
-            setPasswordSuccess(true);
-            setPasswordData({ current: '', new: '', confirm: '' });
-            setShowPasswordForm(false);
-            setTimeout(() => setPasswordSuccess(false), 3000);
-        }, 1500);
-    };
 
     const handleClearCache = () => {
         setClearingCache(true);
@@ -186,11 +152,10 @@ const Security = () => {
             </div>
 
             {/* Success Notifications */}
-            {(passwordSuccess || cacheCleared || historyCleared) && (
+            {(cacheCleared || historyCleared) && (
                 <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 flex items-center gap-3 fade-in">
                     <Check className="text-green-400" size={18} />
                     <span className="text-[11px] font-mono uppercase tracking-widest text-green-400">
-                        {passwordSuccess && 'Password updated successfully'}
                         {cacheCleared && 'Local cache cleared successfully'}
                         {historyCleared && 'Activity history hidden from view'}
                     </span>
@@ -236,96 +201,6 @@ const Security = () => {
 
                 {/* Column 2: Security Settings */}
                 <div className="space-y-6">
-                    <SettingsSection title="Authentication" description="Manage your credentials" icon={Key}>
-                        <div className="space-y-4">
-                            <ActionButton
-                                onClick={() => setShowPasswordForm(!showPasswordForm)}
-                                icon={Lock}
-                                label="Change Password"
-                            />
-
-                            {showPasswordForm && (
-                                    <div className="space-y-4 pt-4 border-t border-border/50 fade-in">
-                                        {/* Current Password */}
-                                        <div className="relative">
-                                            <input
-                                                type={showPasswords.current ? 'text' : 'password'}
-                                                placeholder="CURRENT PASSWORD"
-                                                value={passwordData.current}
-                                                onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })}
-                                                className="w-full bg-background/50 border border-border/50 rounded-lg py-3 px-4 pr-10 text-[11px] font-mono tracking-wider focus:outline-none focus:border-primary/50"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text"
-                                            >
-                                                {showPasswords.current ? <EyeOff size={14} /> : <Eye size={14} />}
-                                            </button>
-                                        </div>
-
-                                        {/* New Password */}
-                                        <div className="relative">
-                                            <input
-                                                type={showPasswords.new ? 'text' : 'password'}
-                                                placeholder="NEW PASSWORD"
-                                                value={passwordData.new}
-                                                onChange={(e) => setPasswordData({ ...passwordData, new: e.target.value })}
-                                                className="w-full bg-background/50 border border-border/50 rounded-lg py-3 px-4 pr-10 text-[11px] font-mono tracking-wider focus:outline-none focus:border-primary/50"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text"
-                                            >
-                                                {showPasswords.new ? <EyeOff size={14} /> : <Eye size={14} />}
-                                            </button>
-                                        </div>
-
-                                        {/* Confirm Password */}
-                                        <div className="relative">
-                                            <input
-                                                type={showPasswords.confirm ? 'text' : 'password'}
-                                                placeholder="CONFIRM NEW PASSWORD"
-                                                value={passwordData.confirm}
-                                                onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })}
-                                                className="w-full bg-background/50 border border-border/50 rounded-lg py-3 px-4 pr-10 text-[11px] font-mono tracking-wider focus:outline-none focus:border-primary/50"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text"
-                                            >
-                                                {showPasswords.confirm ? <EyeOff size={14} /> : <Eye size={14} />}
-                                            </button>
-                                        </div>
-
-                                        {passwordError && (
-                                            <div className="flex items-center gap-2 text-red-400 text-[10px] font-mono">
-                                                <AlertTriangle size={12} />
-                                                <span>{passwordError}</span>
-                                            </div>
-                                        )}
-
-                                        <button
-                                            onClick={handlePasswordChange}
-                                            disabled={changingPassword || !passwordData.current || !passwordData.new || !passwordData.confirm}
-                                            className="w-full bg-primary text-black py-3 rounded-lg text-[11px] font-mono font-bold uppercase tracking-widest hover:bg-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                        >
-                                            {changingPassword ? (
-                                                <>
-                                                    <RefreshCw size={14} className="animate-spin" />
-                                                    Updating...
-                                                </>
-                                            ) : (
-                                                'Update Password'
-                                            )}
-                                        </button>
-                                    </div>
-                            )}
-                        </div>
-                    </SettingsSection>
-
                     <SettingsSection title="Data & Privacy" description="Manage local storage" icon={Database}>
                         <div className="space-y-4">
                             <ActionButton
