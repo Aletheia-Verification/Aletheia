@@ -1,6 +1,6 @@
 aletheia
 deterministic behavioral verification for COBOL mainframe migrations.
-try it: aletheia-verification.koyeb.app
+try it: \*\*try it:\*\* \[attractive-sadye-aletheia-7b91ff1e.koyeb.app](https://attractive-sadye-aletheia-7b91ff1e.koyeb.app)
 what it does
 you're migrating COBOL to Java or whatever. your vendor says it works. aletheia proves whether it actually behaves the same as the mainframe.
 upload your COBOL and get a full analysis. upload mainframe data alongside it and run Shadow Diff to verify behavioral equivalence field by field. binary verdict: VERIFIED or REQUIRES MANUAL REVIEW. no confidence scores, no AI in the verification loop. fully deterministic.
@@ -13,3 +13,4 @@ who this is for
 migration consultancies and banks running COBOL migrations who need to prove the rewrite is correct.
 contact
 built by hector from spain. happy to verify a batch of your programs for free. open an issue or reach out at fathector7@gmail.com .
+
