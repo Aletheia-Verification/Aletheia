@@ -1,0 +1,9 @@
+{
+  "description": "Reference modification: extract substring from position 3, length 5",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-OUT": "CDEFG"
+  },
+  "notes": "WS-FIELD(3:5) means start at position 3 (C), take 5 characters = CDEFG. Reference modification is extremely common in legacy bank code but may not be supported by the generator."
+}

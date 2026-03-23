@@ -7,7 +7,7 @@ const sizeMap = {
 };
 
 const Logo = ({ className, size = 'md', theme = 'gold', onClick }) => {
-    const accentColor = theme === 'silver' ? '#64748B' : '#D4AF37';
+    const accentColor = theme === 'silver' ? '#64748B' : '#1B2A4A';
     const sizeClass = typeof size === 'number' ? `w-[${size}px] h-[${size}px]` : (sizeMap[size] || sizeMap.md);
     const finalClass = className || sizeClass;
 

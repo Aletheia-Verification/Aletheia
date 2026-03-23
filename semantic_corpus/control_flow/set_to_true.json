@@ -1,0 +1,10 @@
+{
+  "description": "SET condition-name TO TRUE assigns first 88-level value to parent",
+  "category": "control_flow",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-STATUS": "A",
+    "WS-RESULT": "100"
+  },
+  "notes": "SET IS-ACTIVE TO TRUE sets WS-STATUS to 'A'. Then IF IS-ACTIVE is true, so WS-RESULT = 100."
+}

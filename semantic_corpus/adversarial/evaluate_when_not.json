@@ -1,0 +1,11 @@
+{
+  "description": "EVALUATE TRUE WHEN NOT WS-X = 1: negated condition in WHEN clause.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "5"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "NOT1"
+  },
+  "notes": "EVALUATE TRUE with WHEN NOT WS-X = 1. X=5, so NOT (5 = 1) is true, first WHEN fires. Engine handles NOT prefix in condition conversion (parse_conditions.py line 467-470)."
+}

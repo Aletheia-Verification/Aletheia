@@ -1,0 +1,9 @@
+{
+  "description": "VALUE ALL 'X' — engine does not support ALL figurative, defaults to spaces",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "     "
+  },
+  "notes": "IBM: VALUE ALL 'X' fills PIC X(5) with 'XXXXX'. Aletheia: VALUE ALL not parsed by VALUE extraction regex — field defaults to spaces. GAP: VALUE ALL figurative constant not supported."
+}

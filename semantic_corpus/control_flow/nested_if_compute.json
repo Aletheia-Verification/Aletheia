@@ -1,0 +1,12 @@
+{
+  "description": "Nested IF with different COMPUTE branches — code 2 applies 25% markup",
+  "category": "control_flow",
+  "inputs": {
+    "WS-CODE": "2",
+    "WS-AMT": "01000.00"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "1250.00"
+  },
+  "notes": "Code=2 enters inner IF → COMPUTE WS-RESULT = 1000.00 * 1.25 = 1250.00."
+}

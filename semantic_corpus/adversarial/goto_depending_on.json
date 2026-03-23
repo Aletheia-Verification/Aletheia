@@ -1,0 +1,11 @@
+{
+  "description": "GO TO DEPENDING ON: WS-IDX=2 transfers control to second paragraph (PARA-B).",
+  "category": "adversarial",
+  "inputs": {
+    "WS-IDX": "2"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "B"
+  },
+  "notes": "GO TO PARA-A PARA-B PARA-C DEPENDING ON WS-IDX. Engine generates if/elif chain: idx=1->PARA-A, idx=2->PARA-B, idx=3->PARA-C. With WS-IDX=2, control goes to PARA-B which sets WS-RESULT='B'. Using PIC X (single char) to avoid padding issues."
+}

@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. ARITH-EXTEND-31.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A           PIC 9(10) VALUE 9999999999.
+       01  WS-B           PIC 9(10).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           COMPUTE WS-B = WS-A * WS-A / WS-A.
+           STOP RUN.

@@ -1,0 +1,11 @@
+{
+  "description": "MOVE DISPLAY to COMP-3 and back: value 12345 preserved across USAGE boundary",
+  "category": "adversarial",
+  "inputs": {
+    "WS-DISPLAY": "12345"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "12345"
+  },
+  "notes": "DISPLAY-to-COMP-3-to-DISPLAY round-trip preserves integer values. CobolDecimal.store() handles cross-USAGE moves via Decimal intermediary."
+}

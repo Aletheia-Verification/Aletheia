@@ -1,0 +1,13 @@
+{
+  "description": "STRING three sources DELIMITED BY SIZE into one target field",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "HELLO",
+    "WS-B": " ",
+    "WS-C": "WORLD"
+  },
+  "expected_outputs": {
+    "WS-TARGET": "HELLO WORLD"
+  },
+  "notes": "Engine concatenates str(ws_a) + str(ws_b) + str(ws_c). DELIMITED BY SIZE uses full field width. Result = 'HELLO' + ' ' + 'WORLD' = 'HELLO WORLD'."
+}

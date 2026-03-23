@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. REF-MOD-BASIC.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-FIELD         PIC X(12) VALUE 'ABCDEFGHIJKL'.
+       01  WS-OUT           PIC X(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-FIELD(3:5) TO WS-OUT.
+           DISPLAY WS-OUT.
+           STOP RUN.

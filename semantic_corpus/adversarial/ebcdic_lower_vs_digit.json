@@ -1,0 +1,12 @@
+{
+  "description": "EBCDIC ordering: 'a' > '1' is FALSE (opposite of ASCII). EBCDIC: a=0x81, 1=0xF1.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "a",
+    "WS-B": "1"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "N"
+  },
+  "notes": "In EBCDIC cp037: 'a'=0x81, '1'=0xF1. 0x81 < 0xF1, so 'a' < '1' and IF WS-A > WS-B is false → WS-RESULT='N'. In ASCII 'a'=0x61 > '1'=0x31, so ASCII would give 'Y'. Tests ebcdic_compare() for lowercase-vs-digit ordering."
+}

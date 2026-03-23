@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. VALUE-COMP3.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-AMT             PIC S9(5) COMP-3 VALUE 12345.
+       01  WS-RESULT          PIC 9(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-AMT TO WS-RESULT.
+           STOP RUN.

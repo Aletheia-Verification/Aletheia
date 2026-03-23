@@ -1,0 +1,13 @@
+{
+  "description": "31-digit precision in ARITH(EXTEND) mode preserves full result",
+  "category": "precision",
+  "inputs": {
+    "WS-LARGE": "123456789.12345678",
+    "WS-FACTOR": "1.00000001"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "123456790.35802467"
+  },
+  "trunc_mode": "STD",
+  "notes": "123456789.12345678 * 1.00000001 = 123456790.3580246812345678. Truncated to V9(8) = 123456790.35802468. Requires prec=31 (EXTEND mode) for correct intermediate digits."
+}

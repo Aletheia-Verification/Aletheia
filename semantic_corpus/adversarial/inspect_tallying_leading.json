@@ -1,0 +1,11 @@
+{
+  "description": "INSPECT TALLYING FOR LEADING — counts leading zeros",
+  "category": "adversarial",
+  "inputs": {
+    "WS-STR": "00123"
+  },
+  "expected_outputs": {
+    "WS-CNT": "2"
+  },
+  "notes": "Engine emits a for-loop that counts leading '0' characters until a non-'0' is found. '00123' has 2 leading zeros. IBM behavior identical."
+}

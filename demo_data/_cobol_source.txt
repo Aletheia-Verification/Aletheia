@@ -1,0 +1,93 @@
+IDENTIFICATION DIVISION.
+       PROGRAM-ID. LOAN-INTEREST-CALC.
+       
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       
+       01 WS-ACCOUNT-DATA.
+          05 WS-ACCOUNT-NUM        PIC X(10).
+          05 WS-PRINCIPAL-BAL      PIC S9(9)V99 COMP-3.
+          05 WS-ANNUAL-RATE        PIC S9(3)V9(6) COMP-3.
+          05 WS-DAYS-IN-YEAR       PIC 9(3) VALUE 365.
+          05 WS-ACCRUED-INT        PIC S9(9)V99 COMP-3.
+          05 WS-PENALTY-RATE       PIC S9(1)V9(4) COMP-3.
+       
+       01 WS-CALC-FIELDS.
+          05 WS-DAILY-RATE         PIC S9(1)V9(8) COMP-3.
+          05 WS-DAILY-INTEREST     PIC S9(9)V99 COMP-3.
+          05 WS-COMPOUND-FACTOR    PIC S9(3)V9(6) COMP-3.
+          05 WS-TEMP-AMOUNT        PIC S9(11)V9(4) COMP-3.
+       
+       01 WS-PENALTY-DATA.
+          05 WS-DAYS-OVERDUE       PIC 9(3).
+          05 WS-PENALTY-AMOUNT     PIC S9(7)V99 COMP-3.
+          05 WS-GRACE-PERIOD       PIC 9(2) VALUE 15.
+          05 WS-MAX-PENALTY-PCT    PIC S9(1)V99 VALUE 0.05.
+       
+       01 WS-ACCOUNT-FLAGS.
+          05 WS-VIP-FLAG           PIC X(1).
+             88 IS-VIP-ACCOUNT     VALUE 'Y'.
+             88 IS-STANDARD        VALUE 'N'.
+          05 WS-RATE-DISCOUNT      PIC S9(1)V9(4) COMP-3.
+       
+       PROCEDURE DIVISION.
+       
+       0000-MAIN-PROCESS.
+           PERFORM 1000-INIT-CALCULATION
+           PERFORM 2000-COMPUTE-DAILY-RATE
+           PERFORM 3000-APPLY-VIP-DISCOUNT
+           PERFORM 4000-CALCULATE-INTEREST
+           PERFORM 5000-CHECK-LATE-PENALTY
+           PERFORM 6000-FINALIZE-AMOUNT
+           STOP RUN.
+       
+       1000-INIT-CALCULATION.
+           INITIALIZE WS-CALC-FIELDS
+           INITIALIZE WS-PENALTY-DATA
+           MOVE 0.0025 TO WS-PENALTY-RATE
+           IF IS-VIP-ACCOUNT
+              MOVE 0.0015 TO WS-RATE-DISCOUNT
+           ELSE
+              MOVE 0 TO WS-RATE-DISCOUNT
+           END-IF.
+       
+       2000-COMPUTE-DAILY-RATE.
+           COMPUTE WS-DAILY-RATE = 
+              WS-ANNUAL-RATE / WS-DAYS-IN-YEAR.
+       
+       3000-APPLY-VIP-DISCOUNT.
+           IF IS-VIP-ACCOUNT
+              COMPUTE WS-DAILY-RATE = 
+                 WS-DAILY-RATE - WS-RATE-DISCOUNT
+              IF WS-DAILY-RATE < 0
+                 MOVE 0 TO WS-DAILY-RATE
+              END-IF
+           END-IF.
+       
+       4000-CALCULATE-INTEREST.
+           COMPUTE WS-TEMP-AMOUNT = 
+              WS-PRINCIPAL-BAL * WS-DAILY-RATE.
+           COMPUTE WS-DAILY-INTEREST = 
+              FUNCTION INTEGER(WS-TEMP-AMOUNT * 100) / 100.
+           ADD WS-DAILY-INTEREST TO WS-ACCRUED-INT.
+       
+       5000-CHECK-LATE-PENALTY.
+           IF WS-DAYS-OVERDUE > WS-GRACE-PERIOD
+              COMPUTE WS-PENALTY-AMOUNT = 
+                 WS-PRINCIPAL-BAL * WS-PENALTY-RATE *
+                 (WS-DAYS-OVERDUE - WS-GRACE-PERIOD)
+              COMPUTE WS-TEMP-AMOUNT = 
+                 WS-PRINCIPAL-BAL * WS-MAX-PENALTY-PCT
+              IF WS-PENALTY-AMOUNT > WS-TEMP-AMOUNT
+                 MOVE WS-TEMP-AMOUNT TO WS-PENALTY-AMOUNT
+              END-IF
+              IF IS-VIP-ACCOUNT
+                 COMPUTE WS-PENALTY-AMOUNT = 
+                    WS-PENALTY-AMOUNT * 0.5
+              END-IF
+           ELSE
+              MOVE 0 TO WS-PENALTY-AMOUNT
+           END-IF.
+       
+       6000-FINALIZE-AMOUNT.
+           ADD WS-PENALTY-AMOUNT TO WS-ACCRUED-INT.

@@ -1,41 +1,20 @@
 import React, { useState, useRef } from 'react';
 import {
     GitCompareArrows, Upload, FileJson, FileText, Cpu,
-    CheckCircle, XCircle, ChevronDown, Download, RotateCcw,
+    CheckCircle, XCircle, Download, RotateCcw,
     Play, Zap, ShieldCheck, Check
 } from 'lucide-react';
 import { apiUrl } from '../config/api';
 import { generateShadowDiffPDF } from '../utils/shadowDiffPdf';
-
-// ── Color Constants (matches Engine.jsx) ──────────────────────────
-const C = {
-    navy: '#1B2A4A',
-    navyLight: '#2D3F5E',
-    text: '#1A1A2E',
-    body: '#2D2D3D',
-    muted: '#5A5A6E',
-    faint: '#6B7280',
-    border: '#E5E7EB',
-    borderLight: '#F0F0F0',
-    bg: '#FFFFFF',
-    bgAlt: '#F8F9FA',
-    green: '#16A34A',
-    greenBg: '#F0FDF4',
-    greenBorder: '#BBF7D0',
-    amber: '#D97706',
-    amberBg: '#FFFBEB',
-    amberBorder: '#FDE68A',
-    red: '#DC2626',
-    redBg: '#FEF2F2',
-    redBorder: '#FECACA',
-    gold: '#C9A84C',
-};
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useColors, LIGHT } from '../hooks/useColors';
 
 // ── Processing Loader ─────────────────────────────────────────────
-const DiffLoader = ({ stage }) => {
+const DiffLoader = ({ stage, C, statusText }) => {
+    if (!C) C = LIGHT;
     const stages = [
-        { id: 'parsing', label: 'Parsing Input Records', icon: FileText },
-        { id: 'executing', label: 'Executing Verification Model', icon: Cpu },
+        { id: 'parsing', label: 'Analyzing COBOL', icon: Cpu },
+        { id: 'executing', label: 'Uploading Data', icon: Upload },
         { id: 'comparing', label: 'Comparing Outputs', icon: GitCompareArrows },
         { id: 'reporting', label: 'Generating Report', icon: ShieldCheck },
     ];
@@ -51,9 +30,9 @@ const DiffLoader = ({ stage }) => {
                 <GitCompareArrows className="absolute inset-0 m-auto w-7 h-7 animate-pulse" style={{ color: C.navy }} strokeWidth={1.5} />
             </div>
             <div className="text-center space-y-2">
-                <h2 className="text-base font-medium tracking-[0.2em] uppercase" style={{ color: C.text }}>Processing</h2>
+                <h2 className="text-base font-medium tracking-[0.2em] uppercase" style={{ color: C.text }}>Verifying</h2>
                 <p className="text-xs tracking-[0.15em] uppercase" style={{ color: C.faint }}>
-                    {stages[currentIndex >= 0 ? currentIndex : 0].label}
+                    {statusText || stages[currentIndex >= 0 ? currentIndex : 0].label}
                 </p>
             </div>
             <div className="flex gap-8">
@@ -79,7 +58,8 @@ const DiffLoader = ({ stage }) => {
 };
 
 // ── File Upload Zone ──────────────────────────────────────────────
-const UploadZone = ({ label, icon: Icon, accept, file, onFile }) => {
+const UploadZone = ({ label, icon: Icon, accept, file, onFile, C }) => {
+    if (!C) C = LIGHT;
     const inputRef = useRef(null);
     const [dragOver, setDragOver] = useState(false);
 
@@ -133,13 +113,23 @@ const UploadZone = ({ label, icon: Icon, accept, file, onFile }) => {
 };
 
 // ── Main ShadowDiff Component ─────────────────────────────────────
-const ShadowDiff = () => {
+const ShadowDiff = ({ onNavigate }) => {
+    const C = useColors() || LIGHT;
     // State
     const [phase, setPhase] = useState('upload'); // upload | processing | results
     const [processingStage, setProcessingStage] = useState('parsing');
     const [error, setError] = useState(null);
+    const [statusText, setStatusText] = useState('');
 
-    // Upload state
+    // Upload state — 3-input flow
+    const [cobolSource, setCobolSource] = useState('');
+    const [cobolFileName, setCobolFileName] = useState('');
+    const [mainframeFile, setMainframeFile] = useState(null);
+    const [migratedFile, setMigratedFile] = useState(null);
+    const [layoutStatus, setLayoutStatus] = useState(null);
+    const [cachedLayout, setCachedLayout] = useState(null);
+    const [manualLayout, setManualLayout] = useState('');
+    // Legacy state for backwards compat with runDiff
     const [layoutFile, setLayoutFile] = useState(null);
     const [inputFile, setInputFile] = useState(null);
     const [outputFile, setOutputFile] = useState(null);
@@ -147,12 +137,15 @@ const ShadowDiff = () => {
 
     // Results state
     const [result, setResult] = useState(null);
-    const [detailsOpen, setDetailsOpen] = useState(false);
     const [mismatchPage, setMismatchPage] = useState(0);
-    const [diagnosedPage, setDiagnosedPage] = useState(0);
 
-    const token = localStorage.getItem('alethia_token');
-    const authHeaders = { 'Authorization': `Bearer ${token}` };
+    useKeyboardShortcuts({
+        onExportPdf: () => { if (result) generateShadowDiffPDF(result, 'executive'); },
+    });
+    const [diagnosedPage, setDiagnosedPage] = useState(0);
+    const [demoLoading, setDemoLoading] = useState(false);
+
+    const authHeaders = {};
 
     const canRun = layoutFile && inputFile && outputFile && pythonSource.trim();
 
@@ -169,7 +162,8 @@ const ShadowDiff = () => {
         ];
 
         try {
-            // Step 1: Upload layout
+            // Upload layout
+            setStatusText('Uploading layout...');
             const layoutRes = await fetch(apiUrl('/shadow-diff/upload-layout'), {
                 method: 'POST',
                 headers: { ...authHeaders, 'Content-Type': 'application/json' },
@@ -177,23 +171,28 @@ const ShadowDiff = () => {
             });
             if (!layoutRes.ok) throw new Error(`Layout upload failed (${layoutRes.status})`);
 
-            // Step 2: Upload mainframe data
+            // Upload mainframe data
+            setStatusText('Step 4/5: Uploading data files...');
+            setProcessingStage('executing');
             const formData = new FormData();
-            formData.append('input_file', inputBlob);
-            formData.append('output_file', outputBlob);
+            formData.append('input_file', inputBlob, 'input.dat');
+            formData.append('output_file', outputBlob, 'output.dat');
             const dataRes = await fetch(
                 apiUrl(`/shadow-diff/upload-mainframe-data?layout_name=${encodeURIComponent(layoutName)}`),
                 { method: 'POST', headers: authHeaders, body: formData }
             );
             if (!dataRes.ok) throw new Error(`Data upload failed (${dataRes.status})`);
 
-            // Step 3: Run diff
+            // Run comparison
+            setStatusText('Step 5/5: Comparing outputs...');
+            setProcessingStage('comparing');
             const runBody = {
                 layout_name: layoutName,
                 generated_python: python,
             };
             if (layoutData.input_mapping) runBody.input_mapping = layoutData.input_mapping;
-            if (layoutData.output_fields) runBody.output_fields = layoutData.output_fields;
+            const of = layoutData.output_fields || layoutData.fields;
+            if (of && of.length > 0) runBody.output_fields = of;
             if (layoutData.constants) runBody.constants = layoutData.constants;
 
             const runRes = await fetch(apiUrl('/shadow-diff/run'), {
@@ -232,23 +231,47 @@ const ShadowDiff = () => {
     // ── Demo Run ──────────────────────────────────────────────────
     const handleDemo = async () => {
         setError(null);
+        setDemoLoading(true);
         try {
-            // Fetch demo files from backend
-            const [layoutRes, inputRes, outputRes, pythonRes] = await Promise.all([
+            // Fetch demo data files and COBOL source in parallel
+            const [layoutRes, inputRes, outputRes, cobolRes] = await Promise.all([
                 fetch(apiUrl('/demo-data/loan_layout.json')),
                 fetch(apiUrl('/demo-data/loan_input.dat')),
                 fetch(apiUrl('/demo-data/loan_mainframe_output.dat')),
-                fetch(apiUrl('/demo-data/converted_loan_interest.py')),
+                fetch(apiUrl('/demo-data/DEMO_LOAN_INTEREST.cbl')),
             ]);
 
-            if (!layoutRes.ok || !inputRes.ok || !outputRes.ok || !pythonRes.ok) {
+            if (!layoutRes.ok || !inputRes.ok || !outputRes.ok || !cobolRes.ok) {
                 throw new Error('Failed to load demo data files');
             }
 
             const layoutData = await layoutRes.json();
             const inputText = await inputRes.text();
             const outputText = await outputRes.text();
-            const pythonText = await pythonRes.text();
+            const cobolSource = await cobolRes.text();
+
+            // Generate Python live via the engine
+            const analyzeRes = await fetch(apiUrl('/engine/analyze'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cobol_code: cobolSource,
+                    filename: 'DEMO_LOAN_INTEREST.cbl',
+                }),
+            });
+
+            if (!analyzeRes.ok) {
+                const err = await analyzeRes.json().catch(() => ({}));
+                throw new Error(err.detail || `Engine analysis failed (${analyzeRes.status})`);
+            }
+
+            const analyzeData = await analyzeRes.json();
+            const pythonText = analyzeData.generated_python;
+            if (!pythonText) {
+                throw new Error('Engine did not return generated Python');
+            }
 
             // Create Blob files for upload
             const inputBlob = new Blob([inputText], { type: 'text/plain' });
@@ -263,6 +286,8 @@ const ShadowDiff = () => {
             await runDiff(layoutData, inputBlob, outputBlob, pythonText, layoutData.name || 'DEMO-LOAN-INTEREST');
         } catch (err) {
             setError(`Demo failed: ${err.message}`);
+        } finally {
+            setDemoLoading(false);
         }
     };
 
@@ -278,16 +303,121 @@ const ShadowDiff = () => {
         URL.revokeObjectURL(url);
     };
 
+    // ── Auto-Layout Check ─────────────────────────────────────────
+    const checkLayout = async (source) => {
+        try {
+            const res = await fetch(apiUrl('/engine/generate-layout'), {
+                method: 'POST',
+                headers: { ...authHeaders, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cobol_code: source }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const fieldCount = data?.fields?.length || 0;
+                if (fieldCount > 0) {
+                    setLayoutStatus({ fields: fieldCount });
+                    setCachedLayout(data);
+                } else {
+                    setLayoutStatus('failed');
+                    setCachedLayout(null);
+                }
+            } else {
+                setLayoutStatus('failed');
+                setCachedLayout(null);
+            }
+        } catch {
+            setLayoutStatus('failed');
+            setCachedLayout(null);
+        }
+    };
+
+    const handleCobolUpload = async (file) => {
+        const text = await file.text();
+        setCobolSource(text);
+        setCobolFileName(file.name);
+        checkLayout(text);
+    };
+
+    // ── 3-Input Verify (5-call chain) ───────────────────────────
+    const handleVerify = async () => {
+        setPhase('processing');
+        setProcessingStage('parsing');
+        setError(null);
+
+        const timers = [
+            setTimeout(() => setProcessingStage('executing'), 3000),
+            setTimeout(() => setProcessingStage('comparing'), 8000),
+            setTimeout(() => setProcessingStage('reporting'), 14000),
+        ];
+
+        try {
+            // Step 1/5: Analyze COBOL
+            setStatusText('Step 1/5: Analyzing COBOL...');
+            setProcessingStage('parsing');
+            const analyzeRes = await fetch(apiUrl('/engine/analyze'), {
+                method: 'POST',
+                headers: { ...authHeaders, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cobol_code: cobolSource,
+                    filename: cobolFileName || 'source.cbl',
+                }),
+            });
+            if (!analyzeRes.ok) throw new Error('Analysis failed: ' + (await analyzeRes.json().catch(() => ({}))).detail);
+            const analysis = await analyzeRes.json();
+            const generatedPython = analysis.generated_python;
+            if (!generatedPython) throw new Error('Engine did not return generated Python');
+
+            // Step 2/5: Generate layout
+            setStatusText('Step 2/5: Generating layout...');
+            let layout = cachedLayout;
+            if (!layout && manualLayout.trim()) {
+                try { layout = JSON.parse(manualLayout); } catch { throw new Error('Invalid layout JSON'); }
+            }
+            if (!layout) {
+                const layoutRes = await fetch(apiUrl('/engine/generate-layout'), {
+                    method: 'POST',
+                    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cobol_code: cobolSource }),
+                });
+                if (layoutRes.ok) layout = await layoutRes.json();
+            }
+            if (!layout || !layout.fields?.length) throw new Error('Could not generate layout from COBOL source.');
+
+            const layoutName = layout.name || 'auto-layout';
+
+            // Step 3/5: Upload layout
+            setStatusText('Step 3/5: Uploading layout...');
+            setProcessingStage('executing');
+
+            // Step 4/5 + 5/5: Run Shadow Diff via existing runDiff
+            setStatusText('Step 4/5: Uploading data files...');
+            await runDiff(layout, mainframeFile, migratedFile, generatedPython, layoutName);
+        } catch (err) {
+            setError(err.message);
+            setPhase('upload');
+        } finally {
+            timers.forEach(clearTimeout);
+        }
+    };
+
+    const canVerify = cobolSource.trim() && mainframeFile && migratedFile;
+
     // ── Reset ─────────────────────────────────────────────────────
     const handleReset = () => {
         setPhase('upload');
         setResult(null);
+        setCobolSource('');
+        setCobolFileName('');
+        setMainframeFile(null);
+        setMigratedFile(null);
+        setLayoutStatus(null);
+        setCachedLayout(null);
+        setManualLayout('');
         setLayoutFile(null);
         setInputFile(null);
         setOutputFile(null);
         setPythonSource('');
         setError(null);
-        setDetailsOpen(false);
         setMismatchPage(0);
         setDiagnosedPage(0);
     };
@@ -296,7 +426,7 @@ const ShadowDiff = () => {
     // RENDER: Processing Phase
     // ══════════════════════════════════════════════════════════════
     if (phase === 'processing') {
-        return <DiffLoader stage={processingStage} />;
+        return <DiffLoader stage={processingStage} C={C} statusText={statusText} />;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -314,47 +444,156 @@ const ShadowDiff = () => {
         const diagnosedPageCount = Math.ceil(diagnosed.length / PAGE_SIZE);
         const diagnosedSlice = diagnosed.slice(diagnosedPage * PAGE_SIZE, (diagnosedPage + 1) * PAGE_SIZE);
 
+        const matchRate = result.total_records > 0
+            ? ((result.matches / result.total_records) * 100).toFixed(1)
+            : '0.0';
+        const outputFields = result.output_fields || [];
+
         return (
-            <div className="max-w-5xl mx-auto px-6 py-8 space-y-8 fade-in">
-                {/* Verdict Badge */}
-                <div className="text-center py-10">
-                    <div
-                        className="inline-flex items-center gap-4 px-10 py-5"
-                        style={{
-                            backgroundColor: isZeroDrift ? C.green : C.red,
-                        }}
-                    >
+            <div className="max-w-5xl mx-auto px-6 py-8 fade-in">
+
+                {/* ═══ HERO: Verdict ═══ */}
+                <div className="mb-10 pb-10 pt-12 border-b" style={{ borderColor: C.border }}>
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 flex items-center justify-center" style={{
+                                backgroundColor: isZeroDrift ? C.greenBg : C.redBg,
+                            }}>
+                                {isZeroDrift
+                                    ? <CheckCircle size={28} strokeWidth={1.5} style={{ color: C.green }} />
+                                    : <XCircle size={28} strokeWidth={1.5} style={{ color: C.red }} />
+                                }
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-semibold tracking-[0.08em] uppercase" style={{ color: C.text }}>
+                                    {isZeroDrift ? 'Zero Drift Confirmed' : 'Drift Detected'}
+                                </h2>
+                                <p className="text-[11px] mt-1 tracking-wide" style={{ color: C.faint }}>
+                                    {result.layout_name || 'Shadow Diff Verification'}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="px-8 py-3.5 text-base font-bold uppercase tracking-widest" style={{
+                            backgroundColor: isZeroDrift ? C.navy : C.bg,
+                            color: isZeroDrift ? '#FFFFFF' : C.red,
+                            border: isZeroDrift ? 'none' : `2px solid ${C.redBorder}`,
+                        }}>
+                            {isZeroDrift ? 'ZERO DRIFT' : `${result.mismatches} MISMATCHES`}
+                        </div>
+                    </div>
+
+                    {/* Description line */}
+                    <p className="text-[13px] leading-relaxed" style={{ color: C.muted }}>
                         {isZeroDrift
-                            ? <CheckCircle size={28} className="text-white" />
-                            : <XCircle size={28} className="text-white" />
+                            ? `All ${result.total_records} records produced identical outputs to the mainframe.`
+                            : `${result.mismatches} of ${result.total_records} records showed behavioral divergence requiring investigation.`
                         }
-                        <span className="text-white text-lg font-medium tracking-[0.3em] uppercase">
-                            {isZeroDrift ? 'Zero Drift Confirmed' : `Drift Detected — ${result.mismatches} Records`}
-                        </span>
+                    </p>
+
+                    {/* Stats Row */}
+                    <div className="flex items-center gap-6 text-[12px] mt-6" style={{ color: C.muted }}>
+                        <span><strong style={{ color: C.text }}>{result.total_records}</strong> Records</span>
+                        <span style={{ color: C.border }}>|</span>
+                        <span><strong style={{ color: C.green }}>{result.matches}</strong> Matches</span>
+                        <span style={{ color: C.border }}>|</span>
+                        <span><strong style={{ color: result.mismatches > 0 ? C.red : C.green }}>{result.mismatches}</strong> Mismatches</span>
+                        <span style={{ color: C.border }}>|</span>
+                        <span><strong style={{ color: C.text }}>{result.abends ?? 0}</strong> S0C7 Abends</span>
+                        <span style={{ color: C.border }}>|</span>
+                        <span><strong style={{ color: isZeroDrift ? C.green : C.amber }}>{matchRate}%</strong> Match Rate</span>
                     </div>
                 </div>
 
-                {/* Stats Row */}
-                <div className="grid grid-cols-3 gap-6">
-                    {[
-                        { label: 'Records Processed', value: result.total_records },
-                        { label: 'Matches', value: result.matches, color: C.green },
-                        { label: 'Mismatches', value: result.mismatches, color: result.mismatches > 0 ? C.red : C.green },
-                    ].map((stat) => (
-                        <div key={stat.label} className="border p-6 text-center" style={{ borderColor: C.border }}>
-                            <div className="text-3xl font-light mb-2" style={{ color: stat.color || C.text }}>
-                                {stat.value}
+                {/* ═══ Verification Summary ═══ */}
+                {isZeroDrift ? (
+                    <div className="mb-12 p-8 border-l-[3px]" style={{ borderColor: C.navy, backgroundColor: '#FAFBFC' }}>
+                        <p className="text-[16px] leading-[1.8] max-w-[900px]" style={{ color: C.body }}>
+                            The generated Python produced mathematically identical outputs to the mainframe across
+                            all {result.total_records} records.
+                            {outputFields.length > 0 && (
+                                <> Fields verified: {outputFields.join(', ')}.</>
+                            )}
+                            {' '}Input file hash and output file hash are cryptographically fingerprinted below.
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Root-Cause Analysis — promoted to top for drift */}
+                        {diagnosed.length > 0 && (
+                            <div className="mb-10 border" style={{ borderColor: C.border }}>
+                                <div className="px-6 py-4 border-b" style={{ borderColor: C.border, backgroundColor: C.amberBg }}>
+                                    <h3 className="text-[13px] font-semibold tracking-[0.15em] uppercase" style={{ color: C.amber }}>
+                                        Root-Cause Analysis
+                                    </h3>
+                                </div>
+                                <div className="divide-y" style={{ borderColor: C.borderLight }}>
+                                    {diagnosedSlice.map((d, i) => (
+                                        <div key={i} className="px-6 py-4" style={{ borderLeft: `3px solid ${C.amber}`, backgroundColor: i % 2 === 0 ? C.bg : C.bgAlt }}>
+                                            <div className="flex items-baseline gap-4 mb-2">
+                                                <span className="font-mono text-xs px-2 py-0.5" style={{ backgroundColor: C.bgAlt, color: C.text }}>
+                                                    Record {d.record}
+                                                </span>
+                                                <span className="font-mono text-xs" style={{ color: C.navy }}>{d.field}</span>
+                                                {d.magnitude && (
+                                                    <span className="text-[10px] tracking-wider" style={{ color: C.red }}>
+                                                        {'\u0394'} {d.magnitude}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-xs mb-1" style={{ color: C.text }}>
+                                                <span className="font-medium" style={{ color: C.amber }}>Cause: </span>
+                                                {d.likely_cause}
+                                            </div>
+                                            <div className="text-xs" style={{ color: C.muted }}>
+                                                <span className="font-medium" style={{ color: C.navy }}>Fix: </span>
+                                                {d.suggested_fix}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {diagnosedPageCount > 1 && (
+                                    <div className="flex items-center justify-between px-6 py-3 border-t" style={{ borderColor: C.border, backgroundColor: C.bgAlt }}>
+                                        <span className="text-[10px] tracking-[0.15em] uppercase font-medium" style={{ color: C.faint }}>
+                                            Showing {diagnosedPage * PAGE_SIZE + 1}&ndash;{Math.min((diagnosedPage + 1) * PAGE_SIZE, diagnosed.length)} of {diagnosed.length}
+                                        </span>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => setDiagnosedPage(p => p - 1)}
+                                                disabled={diagnosedPage === 0}
+                                                className="px-3 py-1 border text-[10px] tracking-[0.15em] uppercase font-medium transition-colors duration-150"
+                                                style={{ borderColor: C.border, color: diagnosedPage === 0 ? C.faint : C.navy, opacity: diagnosedPage === 0 ? 0.4 : 1 }}
+                                            >Prev</button>
+                                            <span className="text-[10px] tracking-[0.15em] uppercase font-medium" style={{ color: C.navy }}>
+                                                Page {diagnosedPage + 1} of {diagnosedPageCount}
+                                            </span>
+                                            <button
+                                                onClick={() => setDiagnosedPage(p => p + 1)}
+                                                disabled={diagnosedPage >= diagnosedPageCount - 1}
+                                                className="px-3 py-1 border text-[10px] tracking-[0.15em] uppercase font-medium transition-colors duration-150"
+                                                style={{ borderColor: C.border, color: diagnosedPage >= diagnosedPageCount - 1 ? C.faint : C.navy, opacity: diagnosedPage >= diagnosedPageCount - 1 ? 0.4 : 1 }}
+                                            >Next</button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="text-[10px] tracking-[0.2em] uppercase" style={{ color: C.faint }}>
-                                {stat.label}
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        )}
 
-                {/* Mismatch Table */}
+                        {/* Drift summary text */}
+                        <div className="mb-10 p-8 border-l-[3px]" style={{ borderColor: C.red, backgroundColor: C.redBg }}>
+                            <p className="text-[16px] leading-[1.8] max-w-[900px]" style={{ color: C.body }}>
+                                {result.mismatches} of {result.total_records} records showed behavioral divergence.
+                                {diagnosed.length > 0
+                                    ? ` Root-cause analysis identified ${diagnosed.length} diagnosed mismatch${diagnosed.length !== 1 ? 'es' : ''} above.`
+                                    : ' Review the mismatch detail below for field-level differences.'
+                                }
+                            </p>
+                        </div>
+                    </>
+                )}
+
+                {/* ═══ Mismatch Table ═══ */}
                 {mismatches.length > 0 && (
-                    <div className="border" style={{ borderColor: C.border }}>
+                    <div className="mb-10 border" style={{ borderColor: C.border }}>
                         <div className="px-6 py-4 border-b" style={{ borderColor: C.border, backgroundColor: C.redBg }}>
                             <h3 className="text-[13px] font-semibold tracking-[0.15em] uppercase" style={{ color: C.red }}>
                                 Mismatch Detail
@@ -422,103 +661,42 @@ const ShadowDiff = () => {
                     </div>
                 )}
 
-                {/* Diagnosed Mismatches */}
-                {diagnosed.length > 0 && (
-                    <div className="border" style={{ borderColor: C.border }}>
-                        <div className="px-6 py-4 border-b" style={{ borderColor: C.border, backgroundColor: C.amberBg }}>
-                            <h3 className="text-[13px] font-semibold tracking-[0.15em] uppercase" style={{ color: C.amber }}>
-                                Root-Cause Analysis
-                            </h3>
-                        </div>
-                        <div className="divide-y" style={{ borderColor: C.borderLight }}>
-                            {diagnosedSlice.map((d, i) => (
-                                <div key={i} className="px-6 py-4" style={{ borderLeft: `3px solid ${C.amber}`, backgroundColor: i % 2 === 0 ? C.bg : C.bgAlt }}>
-                                    <div className="flex items-baseline gap-4 mb-2">
-                                        <span className="font-mono text-xs px-2 py-0.5" style={{ backgroundColor: C.bgAlt, color: C.text }}>
-                                            Record {d.record}
-                                        </span>
-                                        <span className="font-mono text-xs" style={{ color: C.navy }}>{d.field}</span>
-                                        {d.magnitude && (
-                                            <span className="text-[10px] tracking-wider" style={{ color: C.red }}>
-                                                {'\u0394'} {d.magnitude}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="text-xs mb-1" style={{ color: C.text }}>
-                                        <span className="font-medium" style={{ color: C.amber }}>Cause: </span>
-                                        {d.likely_cause}
-                                    </div>
-                                    <div className="text-xs" style={{ color: C.muted }}>
-                                        <span className="font-medium" style={{ color: C.navy }}>Fix: </span>
-                                        {d.suggested_fix}
-                                    </div>
+                {/* ═══ Report Details (always open) ═══ */}
+                <div className="mb-10 border" style={{ borderColor: C.border }}>
+                    <div className="px-6 py-4 border-b flex items-center gap-4" style={{ borderColor: C.border, backgroundColor: C.bgAlt }}>
+                        <FileJson size={16} strokeWidth={1.5} style={{ color: C.faint }} />
+                        <h3 className="text-[13px] font-semibold tracking-[0.15em] uppercase" style={{ color: C.navy }}>
+                            Report Details
+                        </h3>
+                    </div>
+                    <div className="px-6 py-6">
+                        <div className="grid grid-cols-2 gap-6">
+                            {[
+                                { label: 'Timestamp', value: result.timestamp },
+                                { label: 'Layout', value: result.layout_name },
+                                { label: 'Verdict', value: result.verdict },
+                                { label: 'Records Processed', value: result.total_records },
+                            ].map(d => (
+                                <div key={d.label}>
+                                    <div className="text-[9px] uppercase tracking-[0.12em] mb-1.5" style={{ color: C.faint }}>{d.label}</div>
+                                    <div className="font-mono text-xs" style={{ color: C.text }}>{d.value}</div>
                                 </div>
                             ))}
                         </div>
-                        {diagnosedPageCount > 1 && (
-                            <div className="flex items-center justify-between px-6 py-3 border-t" style={{ borderColor: C.border, backgroundColor: C.bgAlt }}>
-                                <span className="text-[10px] tracking-[0.15em] uppercase font-medium" style={{ color: C.faint }}>
-                                    Showing {diagnosedPage * PAGE_SIZE + 1}&ndash;{Math.min((diagnosedPage + 1) * PAGE_SIZE, diagnosed.length)} of {diagnosed.length}
-                                </span>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => setDiagnosedPage(p => p - 1)}
-                                        disabled={diagnosedPage === 0}
-                                        className="px-3 py-1 border text-[10px] tracking-[0.15em] uppercase font-medium transition-colors duration-150"
-                                        style={{ borderColor: C.border, color: diagnosedPage === 0 ? C.faint : C.navy, opacity: diagnosedPage === 0 ? 0.4 : 1 }}
-                                    >Prev</button>
-                                    <span className="text-[10px] tracking-[0.15em] uppercase font-medium" style={{ color: C.navy }}>
-                                        Page {diagnosedPage + 1} of {diagnosedPageCount}
-                                    </span>
-                                    <button
-                                        onClick={() => setDiagnosedPage(p => p + 1)}
-                                        disabled={diagnosedPage >= diagnosedPageCount - 1}
-                                        className="px-3 py-1 border text-[10px] tracking-[0.15em] uppercase font-medium transition-colors duration-150"
-                                        style={{ borderColor: C.border, color: diagnosedPage >= diagnosedPageCount - 1 ? C.faint : C.navy, opacity: diagnosedPage >= diagnosedPageCount - 1 ? 0.4 : 1 }}
-                                    >Next</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Report Details (Collapsible) */}
-                <div className="border" style={{ borderColor: C.border }}>
-                    <button
-                        onClick={() => setDetailsOpen(!detailsOpen)}
-                        className="w-full flex items-center gap-4 px-6 py-5 text-left"
-                    >
-                        <FileJson size={16} strokeWidth={1.5} style={{ color: C.faint }} />
-                        <span className="flex-1 text-[13px] font-semibold uppercase tracking-[0.15em]" style={{ color: C.navy }}>
-                            Report Details
-                        </span>
-                        <ChevronDown size={16} style={{ color: C.faint }}
-                            className={`transition-transform duration-200 ${detailsOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    {detailsOpen && (
-                        <div className="px-6 pb-6 space-y-3 border-t" style={{ borderColor: C.border }}>
-                            <div className="pt-4 grid grid-cols-2 gap-4">
-                                {[
-                                    { label: 'Timestamp', value: result.timestamp },
-                                    { label: 'Layout', value: result.layout_name },
-                                    { label: 'Input Fingerprint', value: result.input_file_hash },
-                                    { label: 'Output Fingerprint', value: result.output_file_hash },
-                                ].map(d => (
-                                    <div key={d.label}>
-                                        <div className="text-[10px] tracking-[0.15em] uppercase mb-1" style={{ color: C.faint }}>{d.label}</div>
-                                        <div className="font-mono text-xs break-all" style={{ color: C.text }}>{d.value}</div>
-                                    </div>
-                                ))}
+                        <div className="mt-6 pt-6 border-t space-y-4" style={{ borderColor: C.borderLight }}>
+                            <div>
+                                <div className="text-[9px] uppercase tracking-[0.12em] mb-1.5" style={{ color: C.faint }}>Input File Fingerprint</div>
+                                <div className="font-mono text-[11px] break-all px-3 py-2" style={{ color: C.text, backgroundColor: C.bgAlt }}>{result.input_file_hash}</div>
                             </div>
                             <div>
-                                <div className="text-[10px] tracking-[0.15em] uppercase mb-1" style={{ color: C.faint }}>Verdict</div>
-                                <div className="font-mono text-xs" style={{ color: C.text }}>{result.verdict}</div>
+                                <div className="text-[9px] uppercase tracking-[0.12em] mb-1.5" style={{ color: C.faint }}>Output File Fingerprint</div>
+                                <div className="font-mono text-[11px] break-all px-3 py-2" style={{ color: C.text, backgroundColor: C.bgAlt }}>{result.output_file_hash}</div>
                             </div>
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* ═══ Action Buttons ═══ */}
                 <div className="flex flex-wrap gap-4">
                     <button
                         onClick={handleExport}
@@ -558,106 +736,107 @@ const ShadowDiff = () => {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // RENDER: Upload Phase
+    // RENDER: Upload Phase — 3-Input Flow
     // ══════════════════════════════════════════════════════════════
     return (
-        <div className="max-w-5xl mx-auto px-6 py-8 space-y-8 fade-in">
+        <div className="max-w-2xl mx-auto px-6 py-8 space-y-10 fade-in">
             {/* Header */}
-            <div className="text-center space-y-3 pb-4">
-                <h2 className="text-base font-medium tracking-[0.25em] uppercase" style={{ color: C.navy }}>
-                    Shadow Diff — Mainframe I/O Replay
+            <div className="text-center space-y-3">
+                <h2 className="text-lg font-medium" style={{ color: C.text }}>
+                    Verify Migration
                 </h2>
-                <p className="text-[11px] tracking-[0.2em] uppercase" style={{ color: C.faint }}>
-                    Compare Aletheia output against real mainframe data
+                <p className="text-sm" style={{ color: C.muted }}>
+                    Prove your migration matches the mainframe. Field by field.
                 </p>
             </div>
 
-            {/* Demo Button */}
-            <div className="text-center">
-                <button
-                    onClick={handleDemo}
-                    className="inline-flex items-center gap-3 px-8 py-4 border text-sm tracking-[0.2em] uppercase transition-all duration-150 hover:shadow-md"
-                    style={{ borderColor: C.navy, color: C.navy }}
-                >
-                    <Zap size={16} strokeWidth={1.5} />
-                    Run Demo
-                </button>
-                <p className="text-[10px] tracking-wider mt-3" style={{ color: C.faint }}>
-                    100 loan records &middot; DEMO_LOAN_INTEREST.cbl
-                </p>
+
+            {/* Step 1: COBOL Source */}
+            <div>
+                <label className="text-[11px] tracking-wider uppercase mb-2 block font-medium" style={{ color: C.muted }}>
+                    1. COBOL Source
+                </label>
+                <UploadZone
+                    label="COBOL Program"
+                    icon={Cpu}
+                    accept=".cbl,.cob,.cobol,.CBL,.COB"
+                    file={cobolFileName ? { name: cobolFileName, size: cobolSource.length } : null}
+                    onFile={handleCobolUpload}
+                    C={C}
+                />
+                {layoutStatus && layoutStatus !== 'failed' && (
+                    <div className="mt-2 text-[11px] flex items-center gap-1.5" style={{ color: C.green }}>
+                        <Check size={12} /> Layout auto-detected: {layoutStatus.fields} fields
+                    </div>
+                )}
+                {layoutStatus === 'failed' && (
+                    <div className="mt-3">
+                        <p className="text-[11px] mb-2" style={{ color: '#D97706' }}>
+                            Could not detect layout from COBOL. Paste field definitions:
+                        </p>
+                        <textarea
+                            value={manualLayout}
+                            onChange={e => setManualLayout(e.target.value)}
+                            className="w-full h-24 font-mono text-[11px] p-3 rounded-lg border resize-none focus:outline-none"
+                            style={{ borderColor: C.border, backgroundColor: C.bgAlt, color: C.text }}
+                            placeholder='{"name": "MY-LAYOUT", "fields": [{"name": "FIELD-A", "start": 0, "length": 10, "type": "string"}]}'
+                        />
+                    </div>
+                )}
             </div>
 
-            {/* Separator */}
-            <div className="flex items-center gap-4">
-                <div className="flex-1 h-px" style={{ backgroundColor: C.border }} />
-                <span className="text-[10px] tracking-[0.2em] uppercase" style={{ color: C.faint }}>or upload your own</span>
-                <div className="flex-1 h-px" style={{ backgroundColor: C.border }} />
-            </div>
-
-            {/* Upload Zones */}
-            <div className="flex flex-col md:flex-row gap-4">
-                <UploadZone
-                    label="Layout Definition"
-                    icon={FileJson}
-                    accept=".json"
-                    file={layoutFile}
-                    onFile={setLayoutFile}
-                />
-                <UploadZone
-                    label="Mainframe Input"
-                    icon={Upload}
-                    accept=".dat,.txt"
-                    file={inputFile}
-                    onFile={setInputFile}
-                />
+            {/* Step 2: Mainframe Output */}
+            <div>
+                <label className="text-[11px] tracking-wider uppercase mb-1 block font-medium" style={{ color: C.muted }}>
+                    2. Mainframe Output
+                </label>
+                <p className="text-[11px] mb-2" style={{ color: C.faint }}>The original system's results</p>
                 <UploadZone
                     label="Mainframe Output"
-                    icon={FileText}
-                    accept=".dat,.txt"
-                    file={outputFile}
-                    onFile={setOutputFile}
+                    icon={Upload}
+                    accept=".dat,.txt,.out"
+                    file={mainframeFile}
+                    onFile={setMainframeFile}
+                    C={C}
                 />
             </div>
 
-            {/* Python Source */}
+            {/* Step 3: Migrated Output */}
             <div>
-                <label className="block text-[11px] tracking-[0.15em] uppercase mb-2 font-medium" style={{ color: C.navy }}>
-                    Generated Python (Verification Model)
+                <label className="text-[11px] tracking-wider uppercase mb-1 block font-medium" style={{ color: C.muted }}>
+                    3. Migrated Output
                 </label>
-                <textarea
-                    value={pythonSource}
-                    onChange={(e) => setPythonSource(e.target.value)}
-                    placeholder="Paste the Aletheia-generated Python code here..."
-                    className="w-full h-40 px-4 py-3 font-mono text-xs border resize-none focus:outline-none focus:ring-1"
-                    style={{
-                        borderColor: C.border,
-                        color: C.text,
-                        backgroundColor: C.bgAlt,
-                        focusRingColor: C.navy,
-                    }}
+                <p className="text-[11px] mb-2" style={{ color: C.faint }}>The new system's results</p>
+                <UploadZone
+                    label="Migrated Output"
+                    icon={FileText}
+                    accept=".dat,.txt,.out"
+                    file={migratedFile}
+                    onFile={setMigratedFile}
+                    C={C}
                 />
             </div>
 
             {/* Error */}
             {error && (
-                <div className="px-5 py-4 border-l-4" style={{ borderColor: C.red, backgroundColor: C.redBg }}>
+                <div className="px-5 py-4 border-l-4 rounded" style={{ borderColor: C.red, backgroundColor: C.redBg }}>
                     <p className="text-sm" style={{ color: C.red }}>{error}</p>
                 </div>
             )}
 
-            {/* Run Button */}
+            {/* Verify Button */}
             <div className="text-center pt-2">
                 <button
-                    onClick={handleRun}
-                    disabled={!canRun}
-                    className="inline-flex items-center gap-3 px-8 py-4 text-white text-sm tracking-[0.2em] uppercase transition-all duration-150"
+                    onClick={handleVerify}
+                    disabled={!canVerify}
+                    className="w-full py-3.5 text-[12px] tracking-wider uppercase font-medium rounded-lg transition-all duration-150"
                     style={{
-                        backgroundColor: canRun ? C.navy : C.border,
-                        cursor: canRun ? 'pointer' : 'not-allowed',
+                        backgroundColor: canVerify ? C.navy : C.border,
+                        color: canVerify ? 'white' : C.muted,
+                        cursor: canVerify ? 'pointer' : 'not-allowed',
                     }}
                 >
-                    <Play size={16} strokeWidth={1.5} />
-                    Run Shadow Diff
+                    Verify
                 </button>
             </div>
         </div>

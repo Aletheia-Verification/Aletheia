@@ -1,0 +1,10 @@
+{
+  "description": "FUNCTION LENGTH and FUNCTION MAX — intrinsic function calls in COMPUTE",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-LEN": "15",
+    "WS-MAX": "200"
+  },
+  "notes": "FUNCTION LENGTH(WS-DATA) — IBM returns PIC length (15), engine returns content length (11). Known gap: LENGTH should return PIC capacity. FUNCTION MAX(50, 200, 125) = 200 is correct."
+}

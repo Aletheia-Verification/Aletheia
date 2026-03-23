@@ -1,0 +1,12 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COMPUTE-EXPONENTIATION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A             PIC 9(4) VALUE 2.
+       01  WS-B             PIC 9(4) VALUE 10.
+       01  WS-RESULT        PIC 9(8) VALUE 0.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           COMPUTE WS-RESULT = WS-A ** WS-B.
+           DISPLAY WS-RESULT.
+           STOP RUN.

@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TRUNC-STD-MODULO.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-BIG         PIC S9(5).
+       01  WS-SMALL       PIC 9(3).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-BIG TO WS-SMALL.
+           STOP RUN.

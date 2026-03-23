@@ -15,6 +15,39 @@ env/
 .vscode/
 .idea/
 
+# Cryptographic keys
+aletheia_keys/
+*.pem
+*.key
+
+# Database and logs
+vault.db
+audit_log.db
+*.db
+*.log
+debug.log
+
+# Build artifacts
+.vite/
+frontend/dist/
+
+# License and SBOM
+license/
+sbom.json
+
+# Binaries (never commit)
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Node
+node_modules/
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Temp files
+_temp_code.txt
+*.tmp

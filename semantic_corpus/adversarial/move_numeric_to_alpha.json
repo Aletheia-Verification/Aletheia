@@ -1,0 +1,9 @@
+{
+  "description": "MOVE numeric to alphanumeric — left-justified, space-padded",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-ALPHA": "12345     "
+  },
+  "notes": "MOVE 12345 to PIC X(10) should produce '12345     ' (left-justified, 5 trailing spaces). IBM behavior: numeric-to-alpha MOVE converts to display representation, left-justifies, and space-pads. This is one of the most common patterns in bank report generation."
+}

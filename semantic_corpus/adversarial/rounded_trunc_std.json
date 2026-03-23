@@ -1,0 +1,13 @@
+{
+  "description": "ADD ROUNDED with TRUNC(STD): 1.005 rounds to 1.01 in PIC 9V99",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "1.005",
+    "WS-B": "0"
+  },
+  "expected_outputs": {
+    "WS-B": "1.01"
+  },
+  "trunc_mode": "STD",
+  "notes": "1.005 added to 0, result 1.005 rounded to 2 decimal places = 1.01 (IBM rounds half up)."
+}

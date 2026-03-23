@@ -1,0 +1,10 @@
+{
+  "description": "MOVE PIC 9V9 to PIC 9V99: decimal alignment pads trailing zero",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-TARGET": "1.50",
+    "WS-DISPLAY": "1"
+  },
+  "notes": "PIC 9V9 value 1.5 moved to PIC 9V99 = 1.50. Engine stores as Decimal, .value returns '1.50'. WS-DISPLAY is string — MOVE numeric to string uses to_display() which shows '1'. GAP: numeric→string display format may differ from IBM."
+}

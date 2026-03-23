@@ -1,0 +1,9 @@
+{
+  "description": "STOP RUN inside PERFORMed paragraph: IBM terminates immediately, engine continues.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-FLAG": "AFTER"
+  },
+  "notes": "IBM gap: STOP RUN inside a PERFORMed paragraph should terminate the program immediately, leaving WS-FLAG='INSID'. Engine emits STOP RUN as 'return' from the paragraph function, not sys.exit(), so execution continues in the caller. MOVE 'AFTER' executes, giving WS-FLAG='AFTER'. IBM would produce 'INSID'."
+}

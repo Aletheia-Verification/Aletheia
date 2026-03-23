@@ -1,0 +1,10 @@
+{
+  "description": "DECIMAL-POINT IS COMMA: COMPUTE 123,45 stores as internal 123.45",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-AMT": "123.45"
+  },
+  "decimal_point": "COMMA",
+  "notes": "With DECIMAL-POINT IS COMMA, the literal 123,45 means 123.45 internally. The engine stores the canonical dot-decimal form."
+}

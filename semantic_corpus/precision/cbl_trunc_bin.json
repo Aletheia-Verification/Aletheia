@@ -1,0 +1,9 @@
+{
+  "description": "CBL TRUNC(BIN) directive auto-detected from source — COMP variable keeps full binary range",
+  "category": "precision",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "10000"
+  },
+  "notes": "CBL TRUNC(BIN) at top of source should be auto-detected by parse_cbl_process_options(). PIC S9(4) COMP holds 9999+1=10000 without modulo under BIN mode. No explicit trunc_mode in JSON — runner must pick it up from the .cbl file."
+}

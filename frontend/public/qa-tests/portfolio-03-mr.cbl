@@ -1,0 +1,14 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PORT3.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-FLAG PIC X.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           ALTER 0100-PARA TO PROCEED TO 0200-EXIT.
+           PERFORM 0100-PARA.
+           STOP RUN.
+       0100-PARA.
+           MOVE 'Y' TO WS-FLAG.
+       0200-EXIT.
+           EXIT.

@@ -1,0 +1,12 @@
+{
+  "description": "DIVIDE without ROUNDED truncates via ROUND_DOWN",
+  "category": "rounding",
+  "inputs": {
+    "WS-A": "10",
+    "WS-B": "3"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "3.33"
+  },
+  "notes": "10/3 = 3.333... ROUND_DOWN to V99 = 3.33, NOT 3.34. This is the #1 source of COBOL-to-Python drift."
+}

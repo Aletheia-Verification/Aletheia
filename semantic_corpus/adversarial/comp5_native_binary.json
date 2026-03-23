@@ -1,0 +1,10 @@
+{
+  "description": "COMP-5 PIC 9(4) stores 50000: always uses native binary range regardless of TRUNC mode",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "50000"
+  },
+  "trunc_mode": "STD",
+  "notes": "COMP-5 always uses native binary capacity (halfword 0-65535). 50000 fits in halfword. TRUNC(STD) does NOT apply PIC truncation to COMP-5. is_native_binary=True bypasses mod truncation."
+}

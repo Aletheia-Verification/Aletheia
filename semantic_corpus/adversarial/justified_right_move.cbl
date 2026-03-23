@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. JUST-RIGHT.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-FIELD            PIC X(5) JUSTIFIED RIGHT.
+       01  WS-OUT              PIC X(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 'AB' TO WS-FIELD.
+           MOVE WS-FIELD TO WS-OUT.
+           STOP RUN.

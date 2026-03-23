@@ -1,0 +1,10 @@
+{
+  "description": "VALUE clause on COMP-3 field: PIC S9(5) COMP-3 VALUE 12345, MOVE to DISPLAY target",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-AMT": "12345",
+    "WS-RESULT": "12345"
+  },
+  "notes": "VALUE 12345 initializes COMP-3 field to 12345. MOVE to PIC 9(5) yields '12345'. Fixed: VALUE clause now extracted by analyzer and passed to CobolDecimal constructor."
+}

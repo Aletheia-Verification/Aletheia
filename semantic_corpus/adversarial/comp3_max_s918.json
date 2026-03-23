@@ -1,0 +1,9 @@
+{
+  "description": "COMP-3 PIC S9(18) max value: 18-digit packed decimal stored and moved to DISPLAY",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "999999999999999999"
+  },
+  "notes": "PIC S9(18) COMP-3 is the maximum packed-decimal size (10 bytes). Engine handles this correctly — 18-digit values stored and retrieved without precision loss."
+}

@@ -1,0 +1,12 @@
+{
+  "description": "MULTIPLY result truncated to PIC decimal places",
+  "category": "rounding",
+  "inputs": {
+    "WS-A": "1.11",
+    "WS-B": "1.11"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "1.23"
+  },
+  "notes": "1.11 * 1.11 = 1.2321. Truncated to V99 via ROUND_DOWN = 1.23, not 1.24."
+}

@@ -1,0 +1,12 @@
+{
+  "description": "UNSTRING with COUNT IN — counts characters in first receiving field",
+  "category": "adversarial",
+  "inputs": {
+    "WS-SRC": "HELLO,WORLD"
+  },
+  "expected_outputs": {
+    "WS-P1": "HELLO",
+    "WS-CNT": "5"
+  },
+  "notes": "Engine emits ws_cnt.store(Decimal(str(len(ws_p1)))). COUNT IN receives length of the data moved to the corresponding field. 'HELLO' = 5 chars."
+}

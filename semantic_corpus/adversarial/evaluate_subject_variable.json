@@ -1,0 +1,11 @@
+{
+  "description": "EVALUATE with PIC X subject variable: WHEN 'A' matches string input.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "A"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "FOUND"
+  },
+  "notes": "EVALUATE WS-X WHEN 'A'. Engine compares PIC X(5) subject against string literal. WS-X='A' (padded to 'A    '), WHEN 'A' comparison uses EBCDIC-aware or string compare. Input is set as string directly via namespace assignment. Expected WS-RESULT='FOUND' padded to PIC X(10)."
+}

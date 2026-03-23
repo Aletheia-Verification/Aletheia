@@ -1,0 +1,9 @@
+{
+  "description": "COMP PIC 9(4) with VALUE 9999 initializes correctly within PIC range",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-B": "9999"
+  },
+  "notes": "VALUE 9999 fits within PIC 9(4) range (0-9999), so no truncation occurs regardless of TRUNC setting. Verifies COMP VALUE initialization works correctly."
+}

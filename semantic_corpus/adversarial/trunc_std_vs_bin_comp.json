@@ -1,0 +1,10 @@
+{
+  "description": "TRUNC(STD) truncates COMP PIC 9(4): 50000 mod 10000 = 0",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "0"
+  },
+  "trunc_mode": "STD",
+  "notes": "Under TRUNC(BIN) the full halfword range is used and 50000 would be stored as-is. Under TRUNC(STD) PIC-based truncation applies: 50000 mod 10^4 = 0."
+}

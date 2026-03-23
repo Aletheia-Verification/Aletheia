@@ -1,2 +1,19 @@
 [0201/212459.217:ERROR:base\i18n\icu_util.cc:224] Invalid file descriptor to ICU data received.
 [0201/212502.746:ERROR:base\i18n\icu_util.cc:224] Invalid file descriptor to ICU data received.
+[0304/155106.609:ERROR:base\i18n\icu_util.cc:232] Invalid file descriptor to ICU data received.
+[0304/155106.613:FATAL:base\i18n\icu_util.cc:306] Check failed: result. 
+	interactive_ui_tests!GetHandleVerifier [0x7ff62e4e7715+34365]
+	interactive_ui_tests!GetHandleVerifier [0x7ff62e4f8517+45167]
+	interactive_ui_tests!GetHandleVerifier [0x7ff62e5d18d7+11e527]
+	interactive_ui_tests!GetHandleVerifier [0x7ff62e5d1779+11e3c9]
+	interactive_ui_tests!GetHandleVerifier [0x7ff62e5ee0ae+13acfe]
+	interactive_ui_tests!GetHandleVerifier [0x7ff62e5eddeb+13aa3b]
+	interactive_ui_tests!GetHandleVerifier [0x7ff62e84e540+39b190]
+	interactive_ui_tests!RelaunchChromeBrowserWithNewCommandLineIfNeeded [0x7ff62da40d43+8d07b3]
+	interactive_ui_tests!RelaunchChromeBrowserWithNewCommandLineIfNeeded [0x7ff62da411b3+8d0c23]
+	interactive_ui_tests!CrashForExceptionInNonABICompliantCodeRange [0x7ff62cc02b1c+3a87f0c]
+	interactive_ui_tests!(No symbol) [0x7ff625f3eeec]
+	interactive_ui_tests!IsSandboxedProcess [0x7ff6359a6ea8+55ec7a8]
+	KERNEL32!BaseThreadInitThunk [0x7ffca92de8d7+17]
+	ntdll!RtlUserThreadStart [0x7ffcaa7cc40c+2c]
+

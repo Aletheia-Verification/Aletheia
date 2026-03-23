@@ -1,0 +1,9 @@
+{
+  "description": "PIC N (NATIONAL/DBCS) declaration: engine parses it but misinterprets as numeric. Non-NATIONAL logic still works.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "DONE "
+  },
+  "notes": "PIC N(10) is IBM NATIONAL (DBCS/UTF-16) data type. Engine does not recognize PIC N — it misinterprets it as CobolDecimal(pic_integers=1). The MOVE to WS-RESULT (PIC X) works normally. Gap: any MOVE to WS-NATIONAL would trigger S0C7. Test verifies the program still runs for non-NATIONAL fields."
+}

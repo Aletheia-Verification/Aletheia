@@ -1,0 +1,13 @@
+{
+  "description": "ADD with ON SIZE ERROR: 95 + 10 = 105 overflows PIC 9(2)",
+  "category": "size_error",
+  "inputs": {
+    "WS-ACCUM": "95",
+    "WS-INCREMENT": "10"
+  },
+  "expected_outputs": {
+    "WS-ACCUM": "95",
+    "WS-ERR-FLAG": "Y"
+  },
+  "notes": "PIC 9(2) max = 99. ADD 95+10=105 > 99. ON SIZE ERROR fires: WS-ACCUM keeps original value 95 (not stored), WS-ERR-FLAG set to 'Y'."
+}

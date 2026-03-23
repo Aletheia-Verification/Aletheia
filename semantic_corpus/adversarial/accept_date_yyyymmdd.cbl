@@ -1,0 +1,19 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. ACCEPT-DATE-YYYYMMDD.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-DATE          PIC 9(8).
+       01  WS-YEAR          PIC 9(4).
+       01  WS-MONTH         PIC 9(2).
+       01  WS-DAY           PIC 9(2).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           ACCEPT WS-DATE FROM DATE YYYYMMDD.
+           DIVIDE WS-DATE BY 10000 GIVING WS-YEAR
+               REMAINDER WS-DATE.
+           DIVIDE WS-DATE BY 100 GIVING WS-MONTH
+               REMAINDER WS-DAY.
+           DISPLAY WS-YEAR.
+           DISPLAY WS-MONTH.
+           DISPLAY WS-DAY.
+           STOP RUN.

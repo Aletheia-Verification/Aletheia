@@ -1,0 +1,9 @@
+{
+  "description": "Explicit USAGE DISPLAY is the default storage: VALUE 54321 moves correctly",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-B": "54321"
+  },
+  "notes": "DISPLAY is the default USAGE for COBOL fields. Explicitly stating it should have no effect on behavior. Verifies the engine does not misinterpret the DISPLAY keyword."
+}

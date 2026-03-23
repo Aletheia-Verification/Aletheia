@@ -1,0 +1,12 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COMPUTE-FUNCTION-MOD.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A             PIC 9(4) VALUE 17.
+       01  WS-B             PIC 9(4) VALUE 5.
+       01  WS-RESULT        PIC 9(4) VALUE 0.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           COMPUTE WS-RESULT = FUNCTION MOD(WS-A WS-B).
+           DISPLAY WS-RESULT.
+           STOP RUN.

@@ -1,0 +1,9 @@
+{
+  "description": "COBOL 74 period-scoped IF without END-IF — nested IF terminated by period",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "INNER-YES"
+  },
+  "notes": "A=5, B=3. Outer IF true (5>3), inner IF true (5>4), so WS-RESULT='INNER-YES'. The period after INNER-NO terminates BOTH IFs. This is classic COBOL 74 code that most parsers mishandle — the period closes ALL open IF scopes."
+}

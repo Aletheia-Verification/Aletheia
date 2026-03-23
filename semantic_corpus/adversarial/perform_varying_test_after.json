@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM VARYING with TEST AFTER — body executes one extra time vs TEST BEFORE",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "4"
+  },
+  "notes": "WITH TEST AFTER: body executes THEN condition is checked. So body runs for X=1,2,3,4. At X=4, body executes, then X>3 is true, loop exits. Count=4. Without TEST AFTER (default TEST BEFORE), body runs for X=1,2,3 only (count=3). This off-by-one is a classic migration bug that causes incorrect bank interest calculations."
+}

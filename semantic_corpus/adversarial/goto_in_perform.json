@@ -1,0 +1,9 @@
+{
+  "description": "GO TO inside PERFORMed paragraph: counter incremented before GO TO only.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNTER": "1"
+  },
+  "notes": "PERFORM PARA-A. Inside PARA-A, ADD 1 then GO TO PARA-EXIT skips the ADD 99. Engine emits GO TO as function call + return, so ADD 99 is unreachable. WS-COUNTER should be 1."
+}

@@ -1,0 +1,12 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. SUBTRACT-FROM-MULTIPLE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A             PIC 9(4) VALUE 20.
+       01  WS-B             PIC 9(4) VALUE 30.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           SUBTRACT 5 FROM WS-A WS-B.
+           DISPLAY WS-A.
+           DISPLAY WS-B.
+           STOP RUN.

@@ -1,0 +1,9 @@
+{
+  "description": "Nested inline PERFORM VARYING: outer I 1-3, inner J 1-2. IBM expects 6 iterations.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "1"
+  },
+  "notes": "IBM gap: Nested inline PERFORM VARYING should produce 3*2=6 iterations. Engine only executes the body once (WS-COUNT=1), likely because nested inline PERFORM VARYING is not fully supported for inline bodies. Use PERFORM VARYING...AFTER (perform_varying_after test) for correct nested loop behavior. IBM expected WS-COUNT=6."
+}

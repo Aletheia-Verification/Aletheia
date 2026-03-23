@@ -1,0 +1,15 @@
+{
+  "description": "ADD TO with multiple receiving fields \u00e2\u20ac\u201d each gets the addend independently",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 1,
+    "WS-B": 2,
+    "WS-C": 3
+  },
+  "expected_outputs": {
+    "WS-A": "11",
+    "WS-B": "12",
+    "WS-C": "13"
+  },
+  "notes": "ADD 10 TO A B C adds 10 to each independently. Not cumulative. Tests multi-target ADD generation."
+}

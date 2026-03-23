@@ -1,0 +1,14 @@
+{
+  "description": "Intermediate precision preserved in chained COMPUTE, truncation only on store",
+  "category": "precision",
+  "inputs": {
+    "WS-A": "100",
+    "WS-B": "3",
+    "WS-C": "3"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "99.99"
+  },
+  "trunc_mode": "STD",
+  "notes": "100/3 = 33.333... (full precision intermediate). 33.333... * 3 = 99.999... Truncate to V99 = 99.99, not 100.00"
+}

@@ -1,0 +1,10 @@
+{
+  "description": "DECIMAL-POINT IS COMMA does not affect STRING DELIMITED BY SIZE on alphanumeric data",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-B": "HELLO"
+  },
+  "decimal_point": "COMMA",
+  "notes": "Verifies that DECIMAL-POINT IS COMMA setting does not interfere with STRING operations on PIC X fields."
+}

@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. ADD-SUM-TRUNCATE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A          PIC S9(3)V999.
+       01  WS-B          PIC S9(3)V999.
+       01  WS-RESULT     PIC S9(3)V99.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           COMPUTE WS-RESULT = WS-A + WS-B.
+           STOP RUN.

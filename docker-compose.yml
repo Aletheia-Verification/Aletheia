@@ -1,0 +1,29 @@
+# ──────────────────────────────────────────────────────────────────
+# ALETHEIA — Docker Compose Configuration
+#
+# Usage:
+#   Air-gapped (default):  docker compose up
+#   Connected (GPT-4o):    ALETHEIA_MODE=connected OPENAI_API_KEY=sk-... docker compose up
+#
+# First run: touch vault.db (creates empty file for bind mount)
+# ──────────────────────────────────────────────────────────────────
+
+services:
+  aletheia:
+    build: .
+    container_name: aletheia
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./vault.db:/app/vault.db
+      - copybook-lib:/app/copybooks
+    environment:
+      - ALETHEIA_MODE=${ALETHEIA_MODE:-air-gapped}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?REQUIRED: set JWT_SECRET_KEY to a secure random string}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+volumes:
+  copybook-lib:
+    driver: local

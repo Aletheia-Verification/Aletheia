@@ -1,0 +1,11 @@
+{
+  "description": "INITIALIZE group item: numeric children to 0, alphanumeric children to SPACES.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-NAME": " ",
+    "WS-AMOUNT": "0.00",
+    "WS-CODE": " "
+  },
+  "notes": "INITIALIZE WS-GROUP sets PIC X fields to SPACES and PIC 9 fields to 0. IBM gap: IBM pads SPACES to full PIC length (10 and 3 chars respectively). Engine sets string vars to single space ' ' via emit_initialize_single. WS-AMOUNT correctly becomes 0.00."
+}

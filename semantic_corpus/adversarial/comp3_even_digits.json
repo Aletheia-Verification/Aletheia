@@ -1,0 +1,11 @@
+{
+  "description": "COMP-3 even digit count: PIC S9(4) occupies 3 bytes ((4+1+1)/2), store and retrieve 4321",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "4321"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "4321"
+  },
+  "notes": "PIC S9(4) COMP-3 = ceil((4+1)/2) = 3 bytes. Even digit count means the high nibble of the first byte is unused (zero-padded). Engine uses CobolDecimal (Decimal-based), so byte-level packing is abstracted. Value preserved correctly."
+}

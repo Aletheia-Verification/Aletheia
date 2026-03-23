@@ -1,0 +1,13 @@
+{
+  "description": "MULTIPLY overflow: 999 * 999 = 998001, stored in PIC 9(4) truncates to 8001",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "999",
+    "WS-B": "999"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "8001"
+  },
+  "trunc_mode": "STD",
+  "notes": "998001 mod 10000 = 8001 under TRUNC(STD). MULTIPLY without ON SIZE ERROR stores truncated result."
+}

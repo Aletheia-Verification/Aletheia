@@ -1,0 +1,11 @@
+{
+  "description": "IF IS NUMERIC class condition: WS-FIELD='12345' should test as numeric.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-FIELD": "12345"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "Y"
+  },
+  "notes": "Engine generates: ws_field.replace('.','').replace('-','').isdigit(). For PIC X field, input '12345' (padded to '12345     ') — the spaces make isdigit() return false after replace. IBM COBOL IS NUMERIC on PIC X checks if all chars are digits. Gap: engine may return 'N' if field is space-padded. If test fails, document as IBM vs Aletheia gap."
+}

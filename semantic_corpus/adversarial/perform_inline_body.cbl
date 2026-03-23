@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PERF-INLINE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-COUNTER     PIC 9(3) VALUE 0.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           PERFORM 3 TIMES
+               ADD 1 TO WS-COUNTER
+           END-PERFORM.
+           STOP RUN.

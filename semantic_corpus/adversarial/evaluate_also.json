@@ -1,0 +1,12 @@
+{
+  "description": "EVALUATE ALSO: multi-subject matching. WS-A=1 AND WS-B=2 must both match.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "1",
+    "WS-B": "2"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "MATCH"
+  },
+  "notes": "EVALUATE WS-A ALSO WS-B generates a compound condition: ws_a.value == 1 AND ws_b.value == 2. Both match, so WS-RESULT='MATCH'. Note: engine does not pad string results inside EVALUATE branches (IBM would pad to PIC X(10) width)."
+}

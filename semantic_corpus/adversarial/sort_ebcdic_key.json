@@ -1,0 +1,12 @@
+{
+  "description": "EBCDIC sort key: 'A' < '1' is TRUE (letters sort before digits in EBCDIC, opposite of ASCII).",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "A",
+    "WS-B": "1"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "Y"
+  },
+  "notes": "In EBCDIC cp037: 'A'=0xC1, '1'=0xF1. 0xC1 < 0xF1, so 'A' < '1' is true → WS-RESULT='Y'. In ASCII: 'A'=0x41 > '1'=0x31, so ASCII would give 'N'. Simulates SORT key ordering: EBCDIC sorts letters before digits."
+}

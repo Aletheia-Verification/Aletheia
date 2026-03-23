@@ -1,0 +1,9 @@
+{
+  "description": "Level 66 RENAMES THRU: alias spans WS-PART-A through WS-PART-B, MOVE alias to output",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-OUT": "      "
+  },
+  "notes": "IBM: 66 RENAMES THRU creates byte-range alias spanning PART-A+PART-B = 'ABCDEF', so WS-OUT='ABCDEF'. Aletheia: emits MANUAL REVIEW comment, alias assigned to ws_part_a at init time (empty string). Python strings are immutable so subsequent MOVE to WS-PART-A does not update alias. WS-ALIAS stays empty, WS-OUT gets 6 spaces. GAP: byte-level RENAMES THRU not implemented."
+}

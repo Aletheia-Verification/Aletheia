@@ -1,0 +1,10 @@
+{
+  "description": "MULTIPLY with ON SIZE ERROR that should NOT fire — result fits in PIC 9(6)",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "998001",
+    "WS-FLAG": "N"
+  },
+  "notes": "999 * 999 = 998001. PIC 9(6) can hold up to 999999, so 998001 fits. SIZE ERROR should NOT fire. WS-FLAG should be 'N' (NOT ON SIZE ERROR branch). This tests that the engine correctly evaluates size error conditions — a false positive here would cause incorrect error handling in banking batch jobs."
+}

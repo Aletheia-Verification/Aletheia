@@ -1,0 +1,11 @@
+{
+  "description": "INSPECT TALLYING FOR ALL with BEFORE INITIAL — counts only before delimiter",
+  "category": "adversarial",
+  "inputs": {
+    "WS-STR": "A.A.A"
+  },
+  "expected_outputs": {
+    "WS-CNT": "1"
+  },
+  "notes": "Engine emits _pos = str(ws_str).find('.'), then counts 'A' in str[:_pos]. 'A.A.A' has '.' at index 1, portion is 'A', count = 1. IBM behavior identical."
+}

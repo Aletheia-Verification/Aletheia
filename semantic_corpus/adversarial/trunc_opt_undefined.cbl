@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TRUNC-OPT-UNDEF.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A           PIC 9(3) COMP.
+       01  WS-RESULT      PIC 9(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 9999 TO WS-A.
+           MOVE WS-A TO WS-RESULT.
+           STOP RUN.

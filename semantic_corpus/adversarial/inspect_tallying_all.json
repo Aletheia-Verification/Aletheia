@@ -1,0 +1,11 @@
+{
+  "description": "INSPECT TALLYING FOR ALL — counts all occurrences of character",
+  "category": "adversarial",
+  "inputs": {
+    "WS-STR": "BANANA"
+  },
+  "expected_outputs": {
+    "WS-CNT": "3"
+  },
+  "notes": "Engine emits ws_cnt.store(Decimal(ws_str.count('A'))). 'BANANA' contains 3 'A' characters. IBM behavior identical."
+}

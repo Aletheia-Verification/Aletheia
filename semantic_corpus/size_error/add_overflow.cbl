@@ -1,0 +1,14 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. OSE-ADD-OVERFLOW.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-ACCUM       PIC 9(2) VALUE 95.
+       01  WS-INCREMENT   PIC 9(2) VALUE 10.
+       01  WS-ERR-FLAG    PIC X(1) VALUE 'N'.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           ADD WS-INCREMENT TO WS-ACCUM
+               ON SIZE ERROR
+                   MOVE 'Y' TO WS-ERR-FLAG
+           END-ADD.
+           STOP RUN.

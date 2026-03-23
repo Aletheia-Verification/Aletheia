@@ -1,0 +1,13 @@
+{
+  "description": "COMPUTE operator precedence: A + B * C = 10 + (3 * 4) = 22, not (10 + 3) * 4 = 52",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "10",
+    "WS-B": "3",
+    "WS-C": "4"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "22"
+  },
+  "notes": "Standard arithmetic precedence: multiply before add. Result is 10 + 12 = 22."
+}

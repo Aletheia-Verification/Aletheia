@@ -1,0 +1,15 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. DEADCODE-TEST.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-X PIC 9(3).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           PERFORM 1000-PROCESS.
+           STOP RUN.
+       1000-PROCESS.
+           ADD 1 TO WS-X.
+       2000-ORPHAN.
+           MOVE 0 TO WS-X.
+       3000-ALSO-ORPHAN.
+           SUBTRACT 1 FROM WS-X.

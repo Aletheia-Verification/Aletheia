@@ -1,0 +1,59 @@
+name: Aletheia Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      USE_IN_MEMORY_DB: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run test suite
+        run: >-
+          python -m pytest
+          test_core_logic.py test_shadow_diff.py test_ebcdic.py
+          test_copybook.py test_abend.py test_cobol_types.py
+          test_cli.py test_cli_verify.py test_dependency.py
+          test_exec_sql.py test_signing.py test_generator_edge_cases.py
+          test_license.py test_integration_stress.py test_layout_generator.py
+          test_dead_code.py test_file_io.py test_generator_fixes.py
+          test_resilience_fixes.py test_security_fixes.py
+          test_parse_conditions.py test_endpoints_new.py test_sort.py
+          test_integration.py test_negative_verification.py
+          test_compiler_matrix.py test_risk_heatmap.py test_search.py
+          test_execution_trace.py test_scoped_namespace.py test_odo.py
+          test_pic_scaling.py test_exec_sandbox.py test_sign_clause.py
+          test_goto_thru.py test_streaming_compare.py
+          test_generator_wiring.py test_mr_top3.py test_audit_logger.py
+          semantic_corpus/run_corpus.py
+          --tb=short -q
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      - name: Run ESLint
+        run: cd frontend && npm run lint
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      - name: Build frontend
+        run: cd frontend && npm run build

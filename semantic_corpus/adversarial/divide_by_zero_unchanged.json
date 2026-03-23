@@ -1,0 +1,10 @@
+{
+  "description": "DIVIDE by zero with ON SIZE ERROR: target unchanged, SIZE ERROR handler fires",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "100",
+    "WS-TARGET": "99999"
+  },
+  "notes": "IBM: Division by zero triggers SIZE ERROR, WS-RESULT stays 100 (target unchanged). SIZE ERROR handler fires, moving 99999 to WS-TARGET."
+}

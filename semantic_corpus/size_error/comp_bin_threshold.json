@@ -1,0 +1,13 @@
+{
+  "description": "COMP with TRUNC(BIN): 30000 + 3000 = 33000 exceeds halfword max 32767",
+  "category": "size_error",
+  "trunc_mode": "BIN",
+  "inputs": {
+    "WS-COMP-VAL": "30000"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "0",
+    "WS-ERR-FLAG": "Y"
+  },
+  "notes": "Under TRUNC(BIN), PIC S9(4) COMP uses binary halfword capacity: max 32767. 30000+3000=33000 > 32767, so ON SIZE ERROR fires. WS-RESULT not stored (stays 0)."
+}

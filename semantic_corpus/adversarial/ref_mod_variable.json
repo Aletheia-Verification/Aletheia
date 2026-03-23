@@ -1,0 +1,9 @@
+{
+  "description": "Variable reference modification with runtime-computed position and length",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-OUT": "WORLD"
+  },
+  "notes": "WS-POS=7, WS-LEN=5 means extract from position 7 for 5 chars of 'HELLO WORLD COBOL123' = 'WORLD'. Variable ref-mod requires runtime subscript evaluation which many generators miss."
+}

@@ -1,0 +1,11 @@
+{
+  "description": "COMP-3 odd digit count: PIC S9(5) occupies 3 bytes ((5+1)/2), store and retrieve 54321",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "54321"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "54321"
+  },
+  "notes": "PIC S9(5) COMP-3 = ceil((5+1)/2) = 3 bytes. Odd digit count means the high nibble of the first byte holds one digit. Engine uses CobolDecimal (Decimal-based), so byte-level packing is abstracted. Value preserved correctly."
+}

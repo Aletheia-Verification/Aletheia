@@ -1,0 +1,12 @@
+{
+  "description": "COMPUTE with unary minus \u00e2\u20ac\u201d tests negation in arithmetic expression",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 30,
+    "WS-B": 50
+  },
+  "expected_outputs": {
+    "WS-RESULT": "20"
+  },
+  "notes": "Unary minus: -30 + 50 = 20. Result is positive so sign storage irrelevant. Tests parser handling of leading minus."
+}

@@ -1,0 +1,12 @@
+{
+  "description": "COMPUTE sum truncated when target has fewer decimal places",
+  "category": "rounding",
+  "inputs": {
+    "WS-A": "1.999",
+    "WS-B": "0.009"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "2.00"
+  },
+  "notes": "1.999 + 0.009 = 2.008. Target PIC S9(3)V99 truncates to 2.00 via ROUND_DOWN."
+}

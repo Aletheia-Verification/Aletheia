@@ -1,0 +1,12 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. ZERO-TIMES.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-COUNT      PIC 9(3).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 0 TO WS-COUNT.
+           PERFORM PARA-A 0 TIMES.
+           STOP RUN.
+       PARA-A.
+           ADD 1 TO WS-COUNT.

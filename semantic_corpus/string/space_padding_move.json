@@ -1,0 +1,10 @@
+{
+  "description": "MOVE short literal to PIC X preserves string value",
+  "category": "string",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-SHORT": "AB ",
+    "WS-LONG": "AB        "
+  },
+  "notes": "MOVE 'AB' to PIC X(3) pads to 3 chars: 'AB '. MOVE PIC X(3) to PIC X(10) pads to 10 chars. COBOL pads string MOVEs with trailing spaces to fill PIC length."
+}

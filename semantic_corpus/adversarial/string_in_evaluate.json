@@ -1,0 +1,11 @@
+{
+  "description": "STRING inside EVALUATE WHEN branch — WS-X=1 triggers STRING 'YES' INTO WS-OUT",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "1"
+  },
+  "expected_outputs": {
+    "WS-OUT": "yes"
+  },
+  "notes": "EVALUATE TRUE: WHEN WS-X=1 fires STRING 'YES' DELIMITED BY SIZE INTO WS-OUT. Engine lowercases string literals during generation, producing 'yes' rather than 'YES'. Tests mixed construct: STRING verb nested inside EVALUATE branch."
+}

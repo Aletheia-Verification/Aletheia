@@ -1,0 +1,9 @@
+{
+  "description": "COMP-4 is synonymous with COMP: VALUE 1234 moves correctly",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-B": "1234"
+  },
+  "notes": "COMP-4 is an IBM synonym for COMP (native binary). Verifies the engine treats COMP-4 identically to COMP."
+}

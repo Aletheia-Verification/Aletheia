@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. VALUE-ALL-X.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-FILL        PIC X(5)  VALUE ALL 'X'.
+       01  WS-RESULT      PIC X(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-FILL TO WS-RESULT.
+           STOP RUN.

@@ -1,0 +1,13 @@
+{
+  "description": "COMPUTE with intermediate overflow triggers ON SIZE ERROR; target unchanged",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "99999",
+    "WS-B": "99999"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "0",
+    "WS-FLAG": "Y"
+  },
+  "notes": "99999 * 99999 = 9999800001 exceeds PIC 9(5) max 99999. ON SIZE ERROR fires, WS-RESULT unchanged at 0, WS-FLAG set to Y."
+}

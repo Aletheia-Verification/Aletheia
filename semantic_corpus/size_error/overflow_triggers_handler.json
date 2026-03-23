@@ -1,0 +1,13 @@
+{
+  "description": "ON SIZE ERROR: 999 + 1 = 1000 overflows PIC 9(3), handler sets flag",
+  "category": "size_error",
+  "inputs": {
+    "WS-A": "999",
+    "WS-B": "1"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "0",
+    "WS-ERR-FLAG": "Y"
+  },
+  "notes": "PIC 9(3) max = 999. COMPUTE 999+1=1000 exceeds capacity. ON SIZE ERROR fires: WS-RESULT is NOT stored (stays 0), WS-ERR-FLAG set to 'Y'."
+}

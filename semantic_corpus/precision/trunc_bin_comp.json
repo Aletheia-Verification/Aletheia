@@ -1,0 +1,12 @@
+{
+  "description": "TRUNC(BIN) with COMP-3 field still truncates to PIC capacity",
+  "category": "precision",
+  "inputs": {
+    "WS-BIG": "1234"
+  },
+  "expected_outputs": {
+    "WS-SMALL": "234.00"
+  },
+  "trunc_mode": "BIN",
+  "notes": "COMP-3 under TRUNC(BIN) still truncates to PIC capacity (mod 1000). Only true binary types (COMP/COMP-4/COMP-5) get full binary range under TRUNC(BIN). COMP-3 is packed decimal, not binary."
+}

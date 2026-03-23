@@ -1,0 +1,12 @@
+{
+  "description": "UNSTRING DELIMITED BY comma — splits input into two fields",
+  "category": "string",
+  "inputs": {
+    "WS-INPUT": "HELLO,WORLD"
+  },
+  "expected_outputs": {
+    "WS-FIRST": "HELLO",
+    "WS-SECOND": "WORLD"
+  },
+  "notes": "UNSTRING splits 'HELLO,WORLD' at comma. WS-FIRST='HELLO' (space-padded to 10), WS-SECOND='WORLD' (space-padded to 10)."
+}

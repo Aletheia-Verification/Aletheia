@@ -1,0 +1,11 @@
+{
+  "description": "MOVE truncation — PIC X(8) value 'ABCDEFGH' moved to PIC X(3) keeps leftmost 3 chars",
+  "category": "adversarial",
+  "inputs": {
+    "WS-LONG": "ABCDEFGH"
+  },
+  "expected_outputs": {
+    "WS-SHORT": "ABC"
+  },
+  "notes": "COBOL alphanumeric MOVE left-justifies and truncates on the right. Moving 'ABCDEFGH' (8 chars) to PIC X(3) stores 'ABC' — the leftmost 3 characters. Engine handles this via CobolDecimal.store() which truncates/pads alphanumeric fields to their PIC length."
+}

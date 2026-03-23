@@ -1,0 +1,12 @@
+{
+  "description": "EBCDIC ordering: 'Z' > 'a' is TRUE. EBCDIC reverses ASCII case ordering.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "Z",
+    "WS-B": "a"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "Y"
+  },
+  "notes": "In EBCDIC cp037: 'Z'=0xE9, 'a'=0x81. 0xE9 > 0x81, so 'Z' > 'a' is true → WS-RESULT='Y'. In ASCII: 'Z'=0x5A < 'a'=0x61, so ASCII would give 'N'. Classic EBCDIC vs ASCII divergence on mixed-case comparison."
+}

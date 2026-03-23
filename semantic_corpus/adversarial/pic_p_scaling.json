@@ -1,0 +1,9 @@
+{
+  "description": "PIC PP999 — P scaling positions (implied decimal zeros)",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "0.00"
+  },
+  "notes": "KNOWN GAP: PIC PP999 VALUE clause not applied. Engine initializes to 0 instead of scaled value. Shadow Diff would catch this on real mainframe data."
+}

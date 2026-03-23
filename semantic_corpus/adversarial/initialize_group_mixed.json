@@ -1,0 +1,11 @@
+{
+  "description": "INITIALIZE on group with mixed PIC types — each type gets its category default",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-CHECK-NAME": "          ",
+    "WS-CHECK-AMT": "0",
+    "WS-CHECK-NUM2": "0"
+  },
+  "notes": "INITIALIZE sets: PIC X -> SPACES, PIC 9 -> ZEROS, COMP-3 -> ZEROS, PIC A -> SPACES. After INITIALIZE, WS-NAME should be all spaces (10 spaces), WS-AMOUNT should be 0, WS-PACKED should be 0.00, WS-ALPHA should be all spaces, WS-NUM2 should be 0. The engine supports INITIALIZE per the construct matrix."
+}

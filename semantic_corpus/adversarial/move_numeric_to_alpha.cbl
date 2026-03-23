@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. MOVE-NUM-ALPHA.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-NUM           PIC 9(5) VALUE 12345.
+       01  WS-ALPHA         PIC X(10).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-NUM TO WS-ALPHA.
+           DISPLAY WS-ALPHA.
+           STOP RUN.

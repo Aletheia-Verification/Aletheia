@@ -1,0 +1,9 @@
+{
+  "description": "Group MOVE with COMP-3 child: engine concatenates display values, not raw bytes",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-TARGET": "ABC123"
+  },
+  "notes": "IBM: group MOVE copies raw bytes including COMP-3 packed representation (3 bytes for PIC 9(4)). Aletheia: concatenates display values — WS-NAME='ABC' + WS-AMT.to_display()='0123' truncated. Result='ABC123' (6 chars). GAP: COMP-3 display length differs from packed byte length."
+}

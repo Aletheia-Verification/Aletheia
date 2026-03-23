@@ -1,0 +1,11 @@
+{
+  "description": "10-level nested IF/ELSE: WS-X=5 matches the 5th level, sets WS-RESULT=5.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "5"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "5"
+  },
+  "notes": "Ten nested IF WS-X = N / ELSE IF chains. Input WS-X=5 falls through levels 1-4 (false) and matches level 5, setting WS-RESULT=5. Tests that the engine correctly handles deeply nested IF/ELSE condition parsing and code generation."
+}

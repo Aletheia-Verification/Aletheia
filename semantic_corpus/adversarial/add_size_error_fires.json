@@ -1,0 +1,12 @@
+{
+  "description": "ADD 999 TO 999 overflows PIC 9(3); ON SIZE ERROR fires, target unchanged",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "999"
+  },
+  "expected_outputs": {
+    "WS-B": "999",
+    "WS-FLAG": "Y"
+  },
+  "notes": "IBM: 999 + 999 = 1998 exceeds PIC 9(3), OSE fires, WS-B stays 999, WS-FLAG='Y'."
+}

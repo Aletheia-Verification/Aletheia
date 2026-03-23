@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM UNTIL loops until condition is met",
+  "category": "control_flow",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNTER": "5"
+  },
+  "notes": "PERFORM 1000-INCREMENT UNTIL WS-COUNTER = 5. Each iteration adds 1. Starts at 0, loops until counter reaches 5."
+}

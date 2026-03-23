@@ -1,0 +1,11 @@
+{
+  "description": "EVALUATE TRUE with WHEN OTHER: input WS-X=5 matches no WHEN, falls to OTHER.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "5"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "OTHER"
+  },
+  "notes": "EVALUATE TRUE checks conditions in order: WS-X=1 (false), WS-X=2 (false), then WHEN OTHER fires. WS-RESULT='OTHER'. Note: engine does not pad string results inside EVALUATE branches (IBM would pad to PIC X(10))."
+}

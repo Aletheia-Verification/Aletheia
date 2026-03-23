@@ -1,0 +1,12 @@
+{
+  "description": "FUNCTION MOD \u00e2\u20ac\u201d modulo operation on positive integers",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 17,
+    "WS-B": 5
+  },
+  "expected_outputs": {
+    "WS-RESULT": "2"
+  },
+  "notes": "MOD(17,5) = 2. IBM MOD = A - (B * INTEGER(A/B)). For positive integers matches Python % operator."
+}

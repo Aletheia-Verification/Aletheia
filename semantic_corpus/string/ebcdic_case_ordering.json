@@ -1,0 +1,12 @@
+{
+  "description": "EBCDIC ordering: lowercase 'a' < uppercase 'A' (opposite of ASCII)",
+  "category": "string",
+  "inputs": {
+    "WS-LOWER": "a",
+    "WS-UPPER": "A"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "LOWER-LESS"
+  },
+  "notes": "In EBCDIC cp037: 'a' = 0x81, 'A' = 0xC1. 0x81 < 0xC1, so 'a' < 'A'. In ASCII this is reversed ('a'=0x61 > 'A'=0x41). Tests ebcdic_compare() for case-sensitive PIC X ordering."
+}

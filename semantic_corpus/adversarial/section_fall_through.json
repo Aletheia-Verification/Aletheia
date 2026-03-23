@@ -1,0 +1,9 @@
+{
+  "description": "Section fall-through: SECTION-A has no EXIT, should fall into SECTION-B. Engine does NOT fall through.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "1"
+  },
+  "notes": "IBM COBOL: without EXIT SECTION or STOP RUN, control falls through from SECTION-A into SECTION-B, giving WS-COUNT=2. Engine gap: main() only calls the first paragraph (PARA-A1) and does NOT fall through to PARA-B1. Result is 1 instead of IBM-correct 2. This is a known limitation — the engine does not model section-level sequential execution."
+}

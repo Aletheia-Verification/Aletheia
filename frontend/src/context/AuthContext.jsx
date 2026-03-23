@@ -42,13 +42,15 @@ export function AuthProvider({ children }) {
       ...details,
     };
 
-    // Use console.group for structured logging
-    console.group(`🔐 AUTH-${action} [${timestamp}]`);
-    console.log('Details:', details);
-    if (details.token) {
-      console.log('Token (first 20 chars):', details.token.substring(0, 20) + '...');
+    // Use console.group for structured logging (dev only)
+    if (import.meta.env.DEV) {
+      console.group(`🔐 AUTH-${action} [${timestamp}]`);
+      console.log('Details:', details);
+      if (details.token) {
+        console.log('Token (first 20 chars):', details.token.substring(0, 20) + '...');
+      }
+      console.groupEnd();
     }
-    console.groupEnd();
 
     // Store last action for debugging
     setAuth((prev) => ({
@@ -164,10 +166,12 @@ export function AuthProvider({ children }) {
   // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     const handle401Event = (event) => {
-      console.group('🔐 AUTH:401-EVENT-RECEIVED');
-      console.log('Event:', event.detail);
-      console.log('Action: Calling logout() to clear auth state');
-      console.groupEnd();
+      if (import.meta.env.DEV) {
+        console.group('🔐 AUTH:401-EVENT-RECEIVED');
+        console.log('Event:', event.detail);
+        console.log('Action: Calling logout() to clear auth state');
+        console.groupEnd();
+      }
       
       // Immediately logout when backend returns 401
       logout();
@@ -193,25 +197,6 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    // Skip bypass token
-    if (token === 'bypass_token_secure') {
-      logAuthEvent('FETCH-PROFILE-BYPASSED', {
-        message: 'Using bypass token - skipping profile fetch',
-      });
-
-      setAuth((prev) => ({
-        ...prev,
-        userProfile: {
-          username: 'admin',
-          institution: 'Aletheia Global',
-          role: 'Chief Architect',
-          is_approved: true,
-        },
-        isApproved: true,
-      }));
-      return;
-    }
-
     const endpoint = '/auth/profile';
 
     logAuthEvent('FETCH-PROFILE-START', {
@@ -233,7 +218,7 @@ export function AuthProvider({ children }) {
 
       // Handle 401: Log and stop — do NOT logout to prevent redirect loops
       if (response.status === 401) {
-        console.error('[AUTH] Profile 401 — token may be invalid. No redirect.');
+        if (import.meta.env.DEV) console.error('[AUTH] Profile 401 — token may be invalid. No redirect.');
         return;
       }
 
@@ -266,7 +251,7 @@ export function AuthProvider({ children }) {
         error: err.message,
         endpoint,
       });
-      console.error('[🔐 AUTH-EXCEPTION] Profile fetch failed:', err);
+      if (import.meta.env.DEV) console.error('[🔐 AUTH-EXCEPTION] Profile fetch failed:', err);
     }
   }, [auth.token, logout, logAuthEvent]);
 

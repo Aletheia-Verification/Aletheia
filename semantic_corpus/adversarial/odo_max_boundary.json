@@ -1,0 +1,10 @@
+{
+  "description": "OCCURS DEPENDING ON at max boundary: N=5, access element 5 of 1-to-5 table",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-N": "5",
+    "WS-RESULT": "500"
+  },
+  "notes": "ODO max boundary: setting N to max (5) and accessing element 5. IBM allows this. Aletheia allocates max-size array so element 5 is accessible. Tests that boundary element is not off-by-one."
+}

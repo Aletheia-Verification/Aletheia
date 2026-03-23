@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GLOBAL-TEST.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-GLOBAL          PIC X(10) GLOBAL.
+       01  WS-OUT             PIC X(10).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 'TESTING' TO WS-GLOBAL.
+           MOVE WS-GLOBAL TO WS-OUT.
+           STOP RUN.

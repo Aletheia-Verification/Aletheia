@@ -1,0 +1,10 @@
+{
+  "description": "COMPUTE with chained arithmetic where intermediate A*B=200000 overflows PIC 9(5) but final result might also overflow",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-AMT": "0",
+    "WS-FLAG": "Y"
+  },
+  "notes": "A*B = 500*400 = 200000. C/D = 100/200 = 0 (integer truncation). 200000 + 0 - 50 = 199950. PIC 9(5) max is 99999, so 199950 overflows. SIZE ERROR fires, WS-AMT unchanged (stays 0). IBM evaluates the full expression in intermediate precision, then checks if the final result fits. The engine should detect the overflow at store time."
+}

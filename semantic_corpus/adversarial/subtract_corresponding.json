@@ -1,0 +1,10 @@
+{
+  "description": "SUBTRACT CORRESPONDING — matching field names subtracted pairwise",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-OUT-R": "100",
+    "WS-OUT-F": "200"
+  },
+  "notes": "IBM: SUBTRACT CORRESPONDING matches fields pairwise, result=95/190. Aletheia: SUBTRACT CORRESPONDING not implemented (only MOVE CORRESPONDING). Values unchanged. GAP: ADD/SUBTRACT CORRESPONDING not emitted."
+}

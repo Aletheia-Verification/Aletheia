@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PACKED-DEC-KW.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A           PIC 9(5) PACKED-DECIMAL VALUE 12345.
+       01  WS-B           PIC 9(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-A TO WS-B.
+           STOP RUN.

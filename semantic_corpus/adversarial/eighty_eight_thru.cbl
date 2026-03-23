@@ -1,0 +1,17 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. EIGHTY-EIGHT-THRU.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-CODE          PIC 9(2) VALUE 30.
+           88  VALID-RANGE   VALUE 10 THRU 50.
+           88  INVALID-RANGE VALUE 51 THRU 99.
+       01  WS-RESULT        PIC X(5) VALUE SPACES.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           IF VALID-RANGE
+               MOVE 'YES' TO WS-RESULT
+           ELSE
+               MOVE 'NO' TO WS-RESULT
+           END-IF.
+           DISPLAY WS-RESULT.
+           STOP RUN.

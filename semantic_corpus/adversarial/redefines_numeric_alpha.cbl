@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. REDEFINES-NUM-ALPHA.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-GROUP.
+           05  WS-NUM        PIC 9(8) VALUE 20260322.
+           05  WS-ALPHA      REDEFINES WS-NUM PIC X(8).
+       01  WS-OUT            PIC X(8).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-ALPHA TO WS-OUT.
+           DISPLAY WS-OUT.
+           STOP RUN.

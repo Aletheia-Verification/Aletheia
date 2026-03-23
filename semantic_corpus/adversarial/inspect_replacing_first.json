@@ -1,0 +1,11 @@
+{
+  "description": "INSPECT REPLACING FIRST — replaces only the first occurrence",
+  "category": "adversarial",
+  "inputs": {
+    "WS-STR": "BANANA"
+  },
+  "expected_outputs": {
+    "WS-STR": "BXNANA"
+  },
+  "notes": "Engine emits ws_str = ws_str.replace('A', 'X', 1). Only the first 'A' (position 1) is replaced. IBM behavior identical."
+}

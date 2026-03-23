@@ -1,0 +1,13 @@
+{
+  "description": "Nested EVALUATE with arithmetic in WHEN branch — tier 3, amount > 10000 gets 1% rate",
+  "category": "control_flow",
+  "inputs": {
+    "WS-TIER": "3",
+    "WS-AMOUNT": "25000.00"
+  },
+  "expected_outputs": {
+    "WS-RATE": "0.0100",
+    "WS-RESULT": "250.00"
+  },
+  "notes": "Tier 3 enters nested EVALUATE. Amount 25000 > 10000 → rate 0.01. Result = 25000 * 0.01 = 250.00."
+}

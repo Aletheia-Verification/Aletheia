@@ -1,0 +1,10 @@
+{
+  "description": "EXTERNAL variable: MOVE to EXTERNAL field, verify data integrity in single program",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-EXTERNAL": "TESTING   ",
+    "WS-OUT": "TESTING   "
+  },
+  "notes": "IBM: EXTERNAL makes variable shared across separately compiled programs via common memory. In single-program context, behaves like regular variable. Aletheia: detects external_var flag in parser but no special generator treatment. MOVE works normally. EXTERNAL cross-program sharing not modeled. GAP: EXTERNAL shared-memory semantics not implemented."
+}

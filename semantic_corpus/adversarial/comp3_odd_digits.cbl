@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COMP3-ODD.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A            PIC S9(5) COMP-3.
+       01  WS-RESULT       PIC S9(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-A TO WS-RESULT.
+           STOP RUN.

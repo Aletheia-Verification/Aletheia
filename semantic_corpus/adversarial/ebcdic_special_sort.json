@@ -1,0 +1,12 @@
+{
+  "description": "EBCDIC ordering: space < period. True in both EBCDIC (0x40 < 0x4B) and ASCII (0x20 < 0x2E).",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": " ",
+    "WS-B": "."
+  },
+  "expected_outputs": {
+    "WS-RESULT": "Y"
+  },
+  "notes": "In EBCDIC cp037: space=0x40, period=0x4B. In ASCII: space=0x20, period=0x2E. Both orderings agree that space < period, so this test passes regardless of collating sequence. Verifies special-character comparison does not break ebcdic_compare()."
+}

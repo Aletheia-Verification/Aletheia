@@ -1,0 +1,10 @@
+{
+  "description": "SUBTRACT causing negative result in unsigned PIC 9(3) — underflow with SIZE ERROR",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-SMALL": "500",
+    "WS-FLAG": "Y"
+  },
+  "notes": "500-1000=-500 overflows unsigned PIC 9(3). SIZE ERROR fires, WS-SMALL unchanged at 500, FLAG='Y'."
+}

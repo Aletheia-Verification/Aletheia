@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM VARYING accumulates sum from 1 to 5",
+  "category": "control_flow",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-SUM": "15"
+  },
+  "notes": "VARYING WS-IDX FROM 1 BY 1 UNTIL > 5. Loop body adds WS-IDX to WS-SUM each iteration. 1+2+3+4+5 = 15."
+}

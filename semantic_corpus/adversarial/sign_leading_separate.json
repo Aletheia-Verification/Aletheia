@@ -1,0 +1,9 @@
+{
+  "description": "PIC S9(5) SIGN LEADING SEPARATE — explicit sign character in display",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-OUT": "-12345"
+  },
+  "notes": "PIC S9(5) SIGN LEADING SEPARATE: sign char at front. MOVE -12345 → '-12345'."
+}

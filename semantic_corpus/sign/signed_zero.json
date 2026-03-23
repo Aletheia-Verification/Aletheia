@@ -1,0 +1,11 @@
+{
+  "description": "Subtracting a value from itself produces exactly zero, not negative zero",
+  "category": "sign",
+  "inputs": {
+    "WS-A": "500.00"
+  },
+  "expected_outputs": {
+    "WS-B": "0.00"
+  },
+  "notes": "500.00 - 500.00 = 0.00. Must be Decimal('0.00'), never Decimal('-0.00'). IBM mainframes have no negative zero for packed decimal."
+}

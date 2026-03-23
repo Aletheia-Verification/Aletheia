@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. MOVE-TRUNC-LEFT.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-LONG          PIC X(8).
+       01  WS-SHORT         PIC X(3).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-LONG TO WS-SHORT.
+           STOP RUN.

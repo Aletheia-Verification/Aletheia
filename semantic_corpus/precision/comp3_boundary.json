@@ -1,0 +1,13 @@
+{
+  "description": "COMP-3 overflow wraps via modulo under TRUNC(STD)",
+  "category": "precision",
+  "inputs": {
+    "WS-AMOUNT": "50000.00",
+    "WS-FACTOR": "2"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "0.00"
+  },
+  "trunc_mode": "STD",
+  "notes": "50000.00 * 2 = 100000.00. PIC S9(5)V99 max_int=100000. 100000 mod 100000 = 0. Result: 0.00"
+}

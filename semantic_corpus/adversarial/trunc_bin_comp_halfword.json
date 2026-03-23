@@ -1,0 +1,10 @@
+{
+  "description": "TRUNC(BIN) allows full binary range: PIC 9(4) COMP stores up to 65535 (halfword)",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "65535"
+  },
+  "trunc_mode": "BIN",
+  "notes": "TRUNC(BIN) uses binary storage range not PIC range. PIC 9(4) COMP = halfword (2 bytes) = 0-65535."
+}

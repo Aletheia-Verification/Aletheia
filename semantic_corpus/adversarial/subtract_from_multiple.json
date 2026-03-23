@@ -1,0 +1,13 @@
+{
+  "description": "SUBTRACT FROM with multiple receiving fields \u00e2\u20ac\u201d each gets subtracted independently",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 20,
+    "WS-B": 30
+  },
+  "expected_outputs": {
+    "WS-A": "15",
+    "WS-B": "25"
+  },
+  "notes": "SUBTRACT 5 FROM A B subtracts 5 from each independently. Tests multi-target SUBTRACT generation."
+}

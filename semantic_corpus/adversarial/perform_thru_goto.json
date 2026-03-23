@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM THRU with GO TO: PARA-B jumps to PARA-C, skipping ADD 100.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "1011"
+  },
+  "notes": "PERFORM PARA-A THRU PARA-C. PARA-A adds 1, PARA-B adds 10 then GO TO PARA-C (skips ADD 100), PARA-C adds 1000. Total: 1 + 10 + 1000 = 1011. Engine uses _thru_goto mechanism to skip to target paragraph within THRU range."
+}

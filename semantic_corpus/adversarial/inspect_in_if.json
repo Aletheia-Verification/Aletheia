@@ -1,0 +1,12 @@
+{
+  "description": "INSPECT TALLYING inside IF branch — FLAG='Y' triggers count of 'A' in 'BANANA'",
+  "category": "adversarial",
+  "inputs": {
+    "WS-FLAG": "Y",
+    "WS-STR": "BANANA"
+  },
+  "expected_outputs": {
+    "WS-CNT": "3"
+  },
+  "notes": "IF WS-FLAG = 'Y' is true, so INSPECT WS-STR TALLYING WS-CNT FOR ALL 'A' executes. 'BANANA' has 3 occurrences of 'A'. Engine emits ws_cnt.store(Decimal(str(ws_str).count('A'))) inside the if-block. Tests INSPECT TALLYING nested inside conditional branch."
+}

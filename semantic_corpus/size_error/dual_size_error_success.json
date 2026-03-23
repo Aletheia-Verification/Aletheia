@@ -1,0 +1,13 @@
+{
+  "description": "ON SIZE ERROR + NOT ON SIZE ERROR both paths — success case fires NOT ON SIZE ERROR",
+  "category": "size_error",
+  "inputs": {
+    "WS-A": "30",
+    "WS-B": "50"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "80",
+    "WS-FLAG": "S"
+  },
+  "notes": "30 + 50 = 80 fits PIC 9(2) max 99. NOT ON SIZE ERROR fires → WS-FLAG = 'S'."
+}

@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM A THRU C executes all paragraphs in source order",
+  "category": "control_flow",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNTER": "111"
+  },
+  "notes": "PERFORM 1000-STEP-A THRU 3000-STEP-C calls A, B, C in sequence. 1 + 10 + 100 = 111."
+}

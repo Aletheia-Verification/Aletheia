@@ -1,0 +1,9 @@
+{
+  "description": "BINARY is synonymous with COMP: VALUE 5678 moves correctly",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-B": "5678"
+  },
+  "notes": "BINARY is a standard COBOL synonym for COMP. Verifies the engine treats BINARY identically to COMP."
+}

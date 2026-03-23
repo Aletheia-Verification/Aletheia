@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. MUL-OVERFLOW.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A          PIC 9(3).
+       01  WS-B          PIC 9(3).
+       01  WS-RESULT     PIC 9(4).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MULTIPLY WS-A BY WS-B GIVING WS-RESULT.
+           STOP RUN.

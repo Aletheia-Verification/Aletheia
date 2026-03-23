@@ -1,0 +1,16 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. EBCDIC-TEST.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-CODE   PIC X(5) VALUE 'ALPHA'.
+       01 WS-LIMIT  PIC X(5) VALUE 'DELTA'.
+       01 WS-RESULT PIC X(10).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           IF WS-CODE < WS-LIMIT
+               MOVE 'LESS' TO WS-RESULT
+           ELSE
+               MOVE 'NOT LESS' TO WS-RESULT
+           END-IF.
+           DISPLAY WS-RESULT.
+           STOP RUN.

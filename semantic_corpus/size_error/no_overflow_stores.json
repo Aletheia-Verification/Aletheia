@@ -1,0 +1,13 @@
+{
+  "description": "NOT ON SIZE ERROR: 500 + 200 = 700 fits PIC 9(3), value stored and NOT ON SIZE ERROR runs",
+  "category": "size_error",
+  "inputs": {
+    "WS-A": "500",
+    "WS-B": "200"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "700",
+    "WS-OK-FLAG": "Y"
+  },
+  "notes": "PIC 9(3) max = 999. COMPUTE 500+200=700 fits. Result stored in WS-RESULT, NOT ON SIZE ERROR fires setting WS-OK-FLAG to 'Y'."
+}

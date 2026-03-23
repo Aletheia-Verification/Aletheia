@@ -1,0 +1,10 @@
+{
+  "description": "MOVE inside ON SIZE ERROR handler — 999*999=998001 overflows PIC 9(4)",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-R": "0",
+    "WS-FLAG": "Y"
+  },
+  "notes": "COMPUTE WS-R = 999 * 999 = 998001, which exceeds PIC 9(4) max of 9999. ON SIZE ERROR fires, MOVE 'Y' TO WS-FLAG executes. WS-R stays at initial value 0 (not stored on overflow). Tests MOVE as handler inside ON SIZE ERROR clause."
+}

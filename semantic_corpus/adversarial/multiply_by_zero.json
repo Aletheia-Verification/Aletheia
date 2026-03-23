@@ -1,0 +1,11 @@
+{
+  "description": "MULTIPLY by zero \u00e2\u20ac\u201d edge case producing zero result",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 999
+  },
+  "expected_outputs": {
+    "WS-RESULT": "0"
+  },
+  "notes": "0 * 999 = 0. Tests that MULTIPLY BY with GIVING correctly stores into target. WS-A unchanged."
+}

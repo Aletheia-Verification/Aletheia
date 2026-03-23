@@ -1,0 +1,9 @@
+{
+  "description": "COMP-1 IEEE 754 single-precision: 0.1 + 0.2 rounding through float truncation",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "0.30"
+  },
+  "notes": "IEEE 754 single: 0.1 stores as ~0.10000000149, 0.2 as ~0.20000000298. Sum ~0.30000000447, stored through IEEE as ~0.30000001192. Quantized to PIC 9V99 (ROUND_DOWN) = 0.30. Engine uses PIC clause with COMP-1 (non-standard but functional). IBM COMP-1 has no PIC — uses raw float."
+}

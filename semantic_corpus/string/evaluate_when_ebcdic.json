@@ -1,0 +1,11 @@
+{
+  "description": "EVALUATE WHEN with PIC X subject — equality matching (EBCDIC-safe)",
+  "category": "string",
+  "inputs": {
+    "WS-CODE": "1"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "DIGIT"
+  },
+  "notes": "Tests EVALUATE value-based mode with a PIC X subject. Equality matching is encoding-independent, but the emission path must handle string subjects correctly."
+}

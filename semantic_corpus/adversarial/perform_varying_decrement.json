@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM VARYING with negative BY: count down from 10 to 1, expect 10 iterations.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "10"
+  },
+  "notes": "PERFORM VARYING WS-I FROM 10 BY -1 UNTIL WS-I < 1. Loop runs for I=10,9,8,...,1 (10 iterations). Tests that negative step values are handled correctly in the while-loop condition."
+}

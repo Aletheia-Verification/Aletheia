@@ -1,0 +1,12 @@
+{
+  "description": "EBCDIC ordering: digit '9' > letter 'A' (opposite of ASCII)",
+  "category": "string",
+  "inputs": {
+    "WS-A": "9",
+    "WS-B": "A"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "GREATER"
+  },
+  "notes": "In EBCDIC cp037: '9' = 0xF9, 'A' = 0xC1. 0xF9 > 0xC1, so '9' > 'A'. In ASCII this is reversed ('9'=0x39 < 'A'=0x41). Tests ebcdic_compare() on PIC X ordering."
+}

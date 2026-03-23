@@ -1,0 +1,12 @@
+{
+  "description": "UNSTRING with DELIMITER IN — captures which delimiter was found",
+  "category": "adversarial",
+  "inputs": {
+    "WS-SRC": "HELLO;WORLD"
+  },
+  "expected_outputs": {
+    "WS-P1": "HELLO",
+    "WS-DLM": ";"
+  },
+  "notes": "Engine uses capture-group split re.split('(,|;)', src). Parts[0]='HELLO', parts[1]=';'. DELIMITER IN receives the actual delimiter found. IBM behavior identical."
+}

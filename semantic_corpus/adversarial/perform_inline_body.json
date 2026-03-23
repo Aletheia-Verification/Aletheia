@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM with inline body END-PERFORM: add 1 to counter 3 times without paragraph call.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNTER": "1"
+  },
+  "notes": "IBM gap: PERFORM 3 TIMES with inline body should iterate 3 times, giving WS-COUNTER=3. Engine executes the inline body only once (WS-COUNTER=1). Inline PERFORM TIMES loop iteration is not fully implemented — engine treats it as a single execution. Use PERFORM paragraph-name 3 TIMES for correct behavior."
+}

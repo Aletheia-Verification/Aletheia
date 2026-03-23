@@ -1,0 +1,11 @@
+{
+  "description": "ACCEPT FROM DATE YYYYMMDD — intrinsic date retrieval and decomposition",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-YEAR": "0",
+    "WS-MONTH": "0",
+    "WS-DAY": "0"
+  },
+  "notes": "KNOWN GAP: ACCEPT FROM DATE YYYYMMDD produces zeros — the date intrinsic is not wired to actual system date in generated code. Shadow Diff would catch this as the mainframe data would have real dates."
+}

@@ -1,0 +1,12 @@
+{
+  "description": "IF with DISPLAY and MOVE — WS-X=10 triggers BIG branch, WS-X stays unchanged",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "10"
+  },
+  "expected_outputs": {
+    "WS-X": "10",
+    "WS-MSG": "BIG"
+  },
+  "notes": "IF WS-X > 5 fires for X=10. DISPLAY is emitted as print() by the engine (side effect only). MOVE 'BIG' TO WS-MSG verifies the branch executed. WS-X remains 10 — not modified by either branch. Tests DISPLAY coexisting with MOVE inside IF."
+}

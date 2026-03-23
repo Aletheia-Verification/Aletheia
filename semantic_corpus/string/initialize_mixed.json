@@ -1,0 +1,11 @@
+{
+  "description": "INITIALIZE on mixed group resets strings to empty, numerics to zero",
+  "category": "string",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-NAME": " ",
+    "WS-AMOUNT": "0.00",
+    "WS-CODE": " "
+  },
+  "notes": "INITIALIZE WS-GROUP: PIC X children reset to '' (SPACES), PIC S9 children reset via .store(Decimal('0')). See generate_full_python.py:1236-1244."
+}

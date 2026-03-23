@@ -1,0 +1,9 @@
+{
+  "description": "88-level with multiple VALUES generates in-check",
+  "category": "control_flow",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "1"
+  },
+  "notes": "IS-VALID has VALUE 'A' 'B' 'C'. WS-CODE is 'B', so IF IS-VALID is true → WS-RESULT = 1."
+}

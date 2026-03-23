@@ -4,7 +4,6 @@
  * CRITICAL: This wrapper automatically adds the Authorization: Bearer <token> header
  * to EVERY fetch request, preventing the "forgot to add token" bug.
  * 
- * Also includes comprehensive logging to trace every step of the auth flow.
  */
 
 import { API_BASE } from '../config/api';
@@ -29,16 +28,7 @@ const buildAuthHeaders = (extra = {}) => {
     ...extra,
   };
 
-  // CRITICAL: Add Bearer token if available
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-    console.group('🔐 AUTH-FETCH-HEADERS');
-    console.log('Token being sent:', token.substring(0, 20) + '...');
-    console.log('Authorization header:', `Bearer ${token.substring(0, 20)}...`);
-    console.groupEnd();
-  } else {
-    console.log('[🔐 AUTH-FETCH] No token available - request will go unauthenticated');
-  }
+  // Auth removed for V1 free launch — no token injection
 
   return headers;
 };
@@ -49,8 +39,7 @@ const buildAuthHeaders = (extra = {}) => {
  */
 const handle401 = (response, endpoint) => {
   if (response.status === 401) {
-    console.error('[AUTH-FETCH] 401 from:', endpoint, '— logged, no action taken');
-    // DO NOT clear localStorage or dispatch events — prevents redirect loops
+    // 401 logged — no redirect to prevent loops
   }
   return response;
 };
@@ -66,11 +55,6 @@ export const authFetch = async (endpoint, options = {}) => {
   const url = `${API_BASE}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
   const method = options.method || 'GET';
 
-  console.group(`🔐 AUTHFETCH-${method}`);
-  console.log('URL:', url);
-  console.log('Method:', method);
-  console.log('Has token:', !!getToken());
-  console.groupEnd();
 
   try {
     const response = await fetch(url, {
@@ -78,18 +62,10 @@ export const authFetch = async (endpoint, options = {}) => {
       headers: buildAuthHeaders(options.headers || {}),
     });
 
-    console.group(`🔐 AUTHFETCH-RESPONSE-${response.status}`);
-    console.log('Endpoint:', endpoint);
-    console.log('Status:', response.status, response.statusText);
-    console.groupEnd();
 
     // Check for 401 and handle it
     return handle401(response, endpoint);
   } catch (error) {
-    console.group('🔐 AUTHFETCH-ERROR');
-    console.error('Fetch error:', error.message);
-    console.log('Endpoint:', endpoint);
-    console.groupEnd();
     throw error;
   }
 };
@@ -151,18 +127,11 @@ export const authApi = {
     const formData = new FormData();
     formData.append('file', file);
 
-    console.group('🔐 AUTHFETCH-UPLOAD');
-    console.log('URL:', url);
-    console.log('File:', file.name);
-    console.log('Has token:', !!token);
-    console.groupEnd();
 
     const response = await fetch(url, {
       ...options,
       method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
+      headers: {},
       body: formData,
     });
 

@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. UNSTR-SIMPLE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-INPUT      PIC X(20).
+       01  WS-FIRST      PIC X(10).
+       01  WS-SECOND     PIC X(10).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           UNSTRING WS-INPUT DELIMITED BY ','
+               INTO WS-FIRST WS-SECOND
+           END-UNSTRING.
+           STOP RUN.

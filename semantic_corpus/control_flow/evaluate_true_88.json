@@ -1,0 +1,11 @@
+{
+  "description": "EVALUATE TRUE with 88-level conditions routes to correct WHEN branch",
+  "category": "control_flow",
+  "inputs": {
+    "WS-STATUS": "10"
+  },
+  "expected_outputs": {
+    "WS-ACTION": "STOP"
+  },
+  "notes": "WS-STATUS=10 matches 88-level STATUS-EOF (VALUE 10). EVALUATE TRUE checks each 88-level condition and executes the matching WHEN branch."
+}

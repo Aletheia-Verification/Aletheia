@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. FALL-THRU.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-COUNT      PIC 9(3).
+       PROCEDURE DIVISION.
+       SECTION-A SECTION.
+       PARA-A1.
+           ADD 1 TO WS-COUNT.
+       SECTION-B SECTION.
+       PARA-B1.
+           ADD 1 TO WS-COUNT.
+           STOP RUN.

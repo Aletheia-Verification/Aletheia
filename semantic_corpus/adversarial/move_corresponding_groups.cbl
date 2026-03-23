@@ -1,0 +1,21 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. MOVE-CORR-GROUPS.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  GROUP-A.
+           05  WS-NAME      PIC X(10) VALUE 'ALICE'.
+           05  WS-AMOUNT    PIC 9(5) VALUE 12345.
+           05  WS-EXTRA     PIC X(5) VALUE 'XXXXX'.
+       01  GROUP-B.
+           05  WS-CODE      PIC 9(3) VALUE 0.
+           05  WS-NAME      PIC X(10) VALUE SPACES.
+           05  WS-AMOUNT    PIC 9(5) VALUE 0.
+           05  WS-STATUS    PIC X(1) VALUE 'A'.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE CORRESPONDING GROUP-A TO GROUP-B.
+           DISPLAY WS-NAME OF GROUP-B.
+           DISPLAY WS-AMOUNT OF GROUP-B.
+           DISPLAY WS-CODE OF GROUP-B.
+           DISPLAY WS-STATUS OF GROUP-B.
+           STOP RUN.

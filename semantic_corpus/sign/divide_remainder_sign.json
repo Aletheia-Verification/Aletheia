@@ -1,0 +1,13 @@
+{
+  "description": "DIVIDE REMAINDER with negative dividend preserves sign correctly",
+  "category": "sign",
+  "inputs": {
+    "WS-DIVIDEND": "-17",
+    "WS-DIVISOR": "5"
+  },
+  "expected_outputs": {
+    "WS-QUOTIENT": "-3",
+    "WS-REMAINDER": "-2"
+  },
+  "notes": "int(-17/5) = -3. Remainder = -17 - (-3 * 5) = -17 + 15 = -2. IBM COBOL remainder has same sign as dividend."
+}

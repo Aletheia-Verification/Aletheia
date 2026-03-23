@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, Lock, GitCompareArrows } from 'lucide-react';
+import { Cpu, Lock } from 'lucide-react';
 import Logo from './Logo';
 
 const HomePage = ({ onNavigate }) => {
@@ -15,7 +15,7 @@ const HomePage = ({ onNavigate }) => {
           Aletheia
         </h1>
         <p className="text-[11px] tracking-[0.2em] uppercase text-[#6B7280]">
-          Deterministic COBOL-to-Python migration verification
+          Deterministic behavioral verification for mainframe migrations
         </p>
         <p className="text-[10px] tracking-[0.15em] text-[#6B7280]/60 mt-2">
           Prove behavioral equivalence. No AI in the pipeline.
@@ -27,30 +27,30 @@ const HomePage = ({ onNavigate }) => {
         {/* The Engine Card — Primary */}
         <button
           onClick={() => onNavigate('engine')}
-          className="flex-1 group relative bg-[#1B2A4A]
+          className="flex-1 group relative bg-white border border-[#E5E7EB]
                      transition-all duration-200 p-12 md:p-14 lg:p-16
-                     hover:shadow-lg
+                     hover:shadow-md
                      focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1B2A4A]/20
                      fade-in"
-          style={{ boxShadow: '0 2px 8px rgba(27,42,74,0.15)', animationDelay: '120ms' }}
+          style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)', borderLeft: '3px solid #1B2A4A', animationDelay: '120ms' }}
         >
           <div className="flex flex-col items-center text-center">
             <div className="w-14 h-14 flex items-center justify-center mb-8
-                          border border-white/20
+                          border border-[#E5E7EB]
                           transition-colors duration-200">
               <Cpu
                 size={26}
                 strokeWidth={1.5}
-                className="text-white/60 group-hover:text-white transition-colors duration-200"
+                className="text-[#6B7280] group-hover:text-[#1B2A4A] transition-colors duration-200"
               />
             </div>
 
-            <h2 className="text-base md:text-lg tracking-[0.3em] uppercase text-white mb-3 font-medium">
+            <h2 className="text-base md:text-lg tracking-[0.3em] uppercase text-[#1A1A2E] mb-3 font-medium">
               The Engine
             </h2>
 
-            <p className="text-[11px] tracking-[0.2em] text-white/70 uppercase">
-              Upload COBOL &rarr; get verified Python
+            <p className="text-[11px] tracking-[0.2em] text-[#6B7280] uppercase">
+              Upload COBOL &rarr; get verified
             </p>
           </div>
         </button>
@@ -86,36 +86,6 @@ const HomePage = ({ onNavigate }) => {
           </div>
         </button>
 
-        {/* The Diff Card */}
-        <button
-          onClick={() => onNavigate('diff')}
-          className="flex-1 group relative bg-white border border-[#E5E7EB]
-                     transition-all duration-200 p-12 md:p-14 lg:p-16
-                     hover:shadow-md
-                     focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1B2A4A]/20
-                     fade-in"
-          style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animationDelay: '240ms' }}
-        >
-          <div className="flex flex-col items-center text-center">
-            <div className="w-14 h-14 flex items-center justify-center mb-8
-                          border border-[#E5E7EB]
-                          transition-colors duration-200">
-              <GitCompareArrows
-                size={26}
-                strokeWidth={1.5}
-                className="text-[#6B7280] group-hover:text-[#1B2A4A] transition-colors duration-200"
-              />
-            </div>
-
-            <h2 className="text-base md:text-lg tracking-[0.3em] uppercase text-[#1A1A2E] mb-3 font-medium">
-              The Diff
-            </h2>
-
-            <p className="text-[11px] tracking-[0.2em] text-[#6B7280] uppercase">
-              Prove output matches the mainframe
-            </p>
-          </div>
-        </button>
       </div>
 
       {/* Footer */}

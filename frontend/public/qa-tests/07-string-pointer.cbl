@@ -1,0 +1,17 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. STRING-TEST.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-FIRST  PIC X(10) VALUE 'JOHN'.
+       01 WS-LAST   PIC X(10) VALUE 'SMITH'.
+       01 WS-FULL   PIC X(25).
+       01 WS-PTR    PIC 9(3) VALUE 1.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           STRING WS-FIRST DELIMITED BY SPACE
+                  ' ' DELIMITED BY SIZE
+                  WS-LAST DELIMITED BY SPACE
+               INTO WS-FULL
+               WITH POINTER WS-PTR.
+           DISPLAY WS-FULL.
+           STOP RUN.

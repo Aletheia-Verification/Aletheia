@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.*
+
+# Database (fresh on first run)
+vault.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+.pytest_cache/
+.vite/
+frontend/node_modules/
+frontend/.vite/
+
+# Cython build artifacts (local builds, not needed in Docker context)
+*.so
+*.c
+build/
+*.egg-info/
+cython_fallback/
+
+# Test files (not needed in production)
+test_*.py
+stress_test.py
+make_test.py
+verify_*.py
+seed_db.py
+
+# Claude
+.claude/
+claude.md
+CLAUDE.md

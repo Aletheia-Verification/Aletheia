@@ -1,0 +1,10 @@
+{
+  "description": "ARITH(EXTEND) 31-digit precision preserves large intermediate: 9999999999 * 9999999999 / 9999999999 = 9999999999",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-B": "9999999999"
+  },
+  "arith_mode": "EXTEND",
+  "notes": "With ARITH(EXTEND) the intermediate product uses 31-digit precision so no overflow or truncation occurs. Under ARITH(COMPAT) with 18-digit intermediates, the multiplication could overflow."
+}

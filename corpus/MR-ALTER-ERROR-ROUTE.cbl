@@ -1,0 +1,65 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. MR-ALTER-ERROR-ROUTE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-ERROR-CODE           PIC X(4).
+       01 WS-ERROR-SEVERITY       PIC 9.
+           88 SEV-INFO             VALUE 1.
+           88 SEV-WARNING          VALUE 2.
+           88 SEV-ERROR            VALUE 3.
+           88 SEV-FATAL            VALUE 4.
+       01 WS-ERROR-MSG            PIC X(50).
+       01 WS-RETRY-COUNT          PIC 9.
+       01 WS-MAX-RETRIES          PIC 9 VALUE 3.
+       01 WS-PROCESS-RESULT       PIC X(10).
+       01 WS-LOG-LINE             PIC X(80).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           PERFORM 1000-INIT
+           ALTER 2000-ERROR-HANDLER TO PROCEED TO
+               2100-INFO-HANDLER
+           PERFORM 3000-PROCESS
+           DISPLAY 'RESULT: ' WS-PROCESS-RESULT
+           STOP RUN.
+       1000-INIT.
+           MOVE 0 TO WS-RETRY-COUNT
+           MOVE SPACES TO WS-PROCESS-RESULT.
+       2000-ERROR-HANDLER.
+           GO TO 2100-INFO-HANDLER.
+       2100-INFO-HANDLER.
+           MOVE 'LOGGED    ' TO WS-PROCESS-RESULT
+           DISPLAY 'INFO: ' WS-ERROR-MSG.
+       2200-WARNING-HANDLER.
+           MOVE 'WARNED    ' TO WS-PROCESS-RESULT
+           DISPLAY 'WARNING: ' WS-ERROR-MSG
+           ADD 1 TO WS-RETRY-COUNT.
+       2300-ERROR-HANDLER.
+           MOVE 'FAILED    ' TO WS-PROCESS-RESULT
+           DISPLAY 'ERROR: ' WS-ERROR-MSG.
+       2400-FATAL-HANDLER.
+           MOVE 'ABORTED   ' TO WS-PROCESS-RESULT
+           DISPLAY 'FATAL: ' WS-ERROR-MSG.
+       3000-PROCESS.
+           EVALUATE TRUE
+               WHEN SEV-INFO
+                   ALTER 2000-ERROR-HANDLER TO PROCEED TO
+                       2100-INFO-HANDLER
+               WHEN SEV-WARNING
+                   ALTER 2000-ERROR-HANDLER TO PROCEED TO
+                       2200-WARNING-HANDLER
+               WHEN SEV-ERROR
+                   ALTER 2000-ERROR-HANDLER TO PROCEED TO
+                       2300-ERROR-HANDLER
+               WHEN SEV-FATAL
+                   ALTER 2000-ERROR-HANDLER TO PROCEED TO
+                       2400-FATAL-HANDLER
+           END-EVALUATE
+           PERFORM 2000-ERROR-HANDLER
+           STRING WS-ERROR-CODE DELIMITED BY SIZE
+               ' SEV=' DELIMITED BY SIZE
+               WS-ERROR-SEVERITY DELIMITED BY SIZE
+               ' ' DELIMITED BY SIZE
+               WS-ERROR-MSG DELIMITED BY '  '
+               INTO WS-LOG-LINE
+           END-STRING
+           DISPLAY 'LOG: ' WS-LOG-LINE.

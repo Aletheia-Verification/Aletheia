@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. INSP-BEFORE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-STR          PIC X(5).
+       01  WS-CNT          PIC 9(3) VALUE 0.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           INSPECT WS-STR TALLYING WS-CNT
+               FOR ALL 'A' BEFORE INITIAL '.'.
+           STOP RUN.

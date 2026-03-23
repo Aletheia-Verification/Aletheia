@@ -1,0 +1,14 @@
+{
+  "description": "COMPUTE with nested parentheses: (10 + 5) * (8 - 3) = 15 * 5 = 75",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "10",
+    "WS-B": "5",
+    "WS-C": "8",
+    "WS-D": "3"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "75"
+  },
+  "notes": "Parenthesized subexpressions evaluated first. (10+5)=15, (8-3)=5, 15*5=75."
+}

@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM WITH TEST AFTER: body executes once before condition is checked.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-X": "1"
+  },
+  "notes": "WITH TEST AFTER means do-while: execute body, then test condition. Body adds 1 to WS-X (0->1), then UNTIL WS-X > 0 is true, loop ends. Engine gap: does not generate a loop — emits inline body once. Result is coincidentally correct for this single-iteration case. For multi-iteration TEST AFTER scenarios, the engine would produce wrong results."
+}

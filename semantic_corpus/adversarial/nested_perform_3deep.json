@@ -1,0 +1,9 @@
+{
+  "description": "Nested PERFORM 3 levels deep: PARA-A calls PARA-B calls PARA-C, each adds 1.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "3"
+  },
+  "notes": "Three-level PERFORM nesting. PARA-A adds 1 then PERFORMs PARA-B, which adds 1 then PERFORMs PARA-C, which adds 1. Total: 3. Tests that the engine correctly handles multi-level paragraph call chains."
+}

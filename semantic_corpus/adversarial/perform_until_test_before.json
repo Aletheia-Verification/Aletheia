@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM WITH TEST BEFORE UNTIL WS-X > 3: X starts at 1, incremented each loop.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-X": "4"
+  },
+  "notes": "TEST BEFORE is the default COBOL behavior. Loop body executes while condition is false: X=1 (body, X=2), X=2 (body, X=3), X=3 (body, X=4), X=4 (condition true, exit). Final WS-X=4."
+}

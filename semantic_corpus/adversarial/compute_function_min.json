@@ -1,0 +1,13 @@
+{
+  "description": "FUNCTION MIN \u00e2\u20ac\u201d returns minimum of three numeric arguments",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 5,
+    "WS-B": 15,
+    "WS-C": 10
+  },
+  "expected_outputs": {
+    "WS-RESULT": "5"
+  },
+  "notes": "FUNCTION MIN is in the supported intrinsics list. Symmetric test to FUNCTION MAX."
+}

@@ -1,0 +1,9 @@
+{
+  "description": "PACKED-DECIMAL is synonymous with COMP-3: VALUE 12345 moves correctly",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-B": "12345"
+  },
+  "notes": "PACKED-DECIMAL is the standard COBOL keyword for COMP-3. Verifies the engine recognizes the keyword and stores/retrieves the value correctly."
+}

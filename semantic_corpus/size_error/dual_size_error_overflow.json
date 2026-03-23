@@ -1,0 +1,13 @@
+{
+  "description": "ON SIZE ERROR + NOT ON SIZE ERROR both paths — overflow case fires ON SIZE ERROR",
+  "category": "size_error",
+  "inputs": {
+    "WS-A": "60",
+    "WS-B": "50"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "0",
+    "WS-FLAG": "E"
+  },
+  "notes": "60 + 50 = 110 > PIC 9(2) max 99. ON SIZE ERROR fires → WS-FLAG = 'E'. WS-RESULT unchanged (stays 0)."
+}

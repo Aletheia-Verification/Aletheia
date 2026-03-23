@@ -1,0 +1,11 @@
+{
+  "description": "FUNCTION LENGTH — IBM returns declared PIC length, engine returns content length",
+  "category": "adversarial",
+  "inputs": {
+    "WS-STR": "HELLO"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "10"
+  },
+  "notes": "FUNCTION LENGTH returns PIC capacity (10), not content length."
+}

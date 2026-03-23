@@ -1,0 +1,9 @@
+{
+  "description": "MOVE alphanumeric '00123' to PIC 9(5) — numeric interpretation of digit string",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-NUM": "123"
+  },
+  "notes": "MOVE '00123' to PIC 9(5). On IBM, the alphanumeric string is moved to the numeric field zone-digit by zone-digit. The display value should be '00123'. The engine CobolDecimal.store should parse '00123' as 123 internally but display as '00123' with leading zeros per PIC 9(5)."
+}

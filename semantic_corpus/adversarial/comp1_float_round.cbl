@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COMP1-ROUND.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-FLT          PIC S9(1)V99 COMP-1.
+       01  WS-RESULT       PIC 9V99.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 0.1 TO WS-FLT.
+           COMPUTE WS-RESULT = WS-FLT + 0.2.
+           STOP RUN.

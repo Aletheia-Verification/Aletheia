@@ -1,0 +1,150 @@
+{
+  "name": "BATCH_PAYMENT",
+  "fields": [
+    {
+      "name": "PAYMENT-TYPE",
+      "start": 0,
+      "length": 2,
+      "type": "string"
+    },
+    {
+      "name": "PRINCIPAL",
+      "start": 2,
+      "length": 12,
+      "type": "decimal",
+      "decimals": 2
+    },
+    {
+      "name": "ANNUAL-RATE",
+      "start": 14,
+      "length": 10,
+      "type": "decimal",
+      "decimals": 6
+    },
+    {
+      "name": "TERM-MONTHS",
+      "start": 24,
+      "length": 3,
+      "type": "integer"
+    },
+    {
+      "name": "LATE-DAYS",
+      "start": 27,
+      "length": 3,
+      "type": "integer"
+    },
+    {
+      "name": "TAX-AMT",
+      "start": 30,
+      "length": 10,
+      "type": "decimal",
+      "decimals": 2
+    },
+    {
+      "name": "INSURANCE-AMT",
+      "start": 40,
+      "length": 10,
+      "type": "decimal",
+      "decimals": 2
+    }
+  ],
+  "record_length": 50,
+  "input_mapping": {
+    "PAYMENT-TYPE": "ws_payment_type",
+    "PRINCIPAL": "ws_principal",
+    "ANNUAL-RATE": "ws_annual_rate",
+    "TERM-MONTHS": "ws_term_months",
+    "LATE-DAYS": "ws_late_days",
+    "TAX-AMT": "ws_tax_amt",
+    "INSURANCE-AMT": "ws_insurance_amt"
+  },
+  "output_fields": [
+    "ws_payment_amt",
+    "ws_remaining_bal",
+    "ws_total_interest",
+    "ws_total_paid",
+    "ws_late_fee",
+    "ws_escrow_amt",
+    "ws_total_monthly",
+    "ws_status",
+    "ws_error_code"
+  ],
+  "constants": {},
+  "output_layout": {
+    "fields": [
+      {
+        "name": "PAYMENT-AMT",
+        "start": 0,
+        "length": 12,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "REMAINING-BAL",
+        "start": 12,
+        "length": 12,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "TOTAL-INTEREST",
+        "start": 24,
+        "length": 12,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "TOTAL-PAID",
+        "start": 36,
+        "length": 12,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "LATE-FEE",
+        "start": 48,
+        "length": 10,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "ESCROW-AMT",
+        "start": 58,
+        "length": 12,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "TOTAL-MONTHLY",
+        "start": 70,
+        "length": 12,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "STATUS",
+        "start": 82,
+        "length": 15,
+        "type": "string"
+      },
+      {
+        "name": "ERROR-CODE",
+        "start": 97,
+        "length": 4,
+        "type": "integer"
+      }
+    ],
+    "record_length": 101,
+    "field_mapping": {
+      "PAYMENT-AMT": "ws_payment_amt",
+      "REMAINING-BAL": "ws_remaining_bal",
+      "TOTAL-INTEREST": "ws_total_interest",
+      "TOTAL-PAID": "ws_total_paid",
+      "LATE-FEE": "ws_late_fee",
+      "ESCROW-AMT": "ws_escrow_amt",
+      "TOTAL-MONTHLY": "ws_total_monthly",
+      "STATUS": "ws_status",
+      "ERROR-CODE": "ws_error_code"
+    }
+  }
+}

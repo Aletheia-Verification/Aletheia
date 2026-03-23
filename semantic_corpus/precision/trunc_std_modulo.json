@@ -1,0 +1,12 @@
+{
+  "description": "TRUNC(STD) modulo truncation on DISPLAY field",
+  "category": "precision",
+  "inputs": {
+    "WS-BIG": "1234"
+  },
+  "expected_outputs": {
+    "WS-SMALL": "234"
+  },
+  "trunc_mode": "STD",
+  "notes": "PIC 9(3) max_int=1000. 1234 mod 1000 = 234. Standard COBOL truncation."
+}

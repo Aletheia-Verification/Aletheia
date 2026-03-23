@@ -1,0 +1,18 @@
+{
+  "description": "UNSTRING with OR delimiter + POINTER + COUNT IN + DELIMITER IN + TALLYING + ON OVERFLOW",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-OUT1": "AAA",
+    "WS-OUT2": "BBB",
+    "WS-OUT3": "CCC",
+    "WS-OUT4": "DDD",
+    "WS-DELIM1": ",",
+    "WS-DELIM2": ";",
+    "WS-COUNT1": "3",
+    "WS-COUNT2": "3",
+    "WS-TALLY": "4",
+    "WS-OVERFLOW": "N"
+  },
+  "notes": "UNSTRING 'AAA,BBB;CCC,DDD' by ',' OR ';'. Produces 4 fields: AAA, BBB, CCC, DDD. Delimiters: first is ',', second is ';'. Counts are 3 each. Tally=4. No overflow. This is flagged MR per support matrix (UNSTRING with OR/POINTER/TALLYING). Every banking CSV parser uses this pattern."
+}

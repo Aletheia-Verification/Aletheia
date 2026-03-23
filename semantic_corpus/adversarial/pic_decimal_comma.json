@@ -1,0 +1,11 @@
+{
+  "description": "DECIMAL-POINT IS COMMA: COMPUTE with comma decimal literal, verify correct storage",
+  "category": "adversarial",
+  "decimal_point": "COMMA",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-AMT": "123.45",
+    "WS-OUT": "123.45"
+  },
+  "notes": "SPECIAL-NAMES DECIMAL-POINT IS COMMA swaps comma and period in literals. Preprocessor converts 123,45 to 123.45 before ANTLR parse. Engine handles this correctly. Internal Decimal value is 123.45."
+}

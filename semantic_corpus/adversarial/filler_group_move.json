@@ -1,0 +1,9 @@
+{
+  "description": "FILLER in group: group MOVE includes FILLER bytes in concatenation",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-TARGET": "ABC  DEF"
+  },
+  "notes": "Group MOVE concatenates all subordinate fields including FILLER. WS-GROUP = 'ABC' + '  ' (FILLER 2 spaces) + 'DEF' = 'ABC  DEF'. Fixed: _build_group_concat walks var_list including FILLER entries."
+}

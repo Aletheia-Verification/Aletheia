@@ -1,0 +1,12 @@
+{
+  "description": "GO TO inside nested IF branches routes to correct paragraph",
+  "category": "control_flow",
+  "inputs": {
+    "WS-X": "5",
+    "WS-Y": "-1"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "X-ONLY    "
+  },
+  "notes": "WS-X=5 (>0, true), WS-Y=-1 (>0, false). Inner IF skipped, falls to outer GO TO 2000-X-ONLY. MOVE 'X-ONLY' to PIC X(10) pads to 10 chars."
+}

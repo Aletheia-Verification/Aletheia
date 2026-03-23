@@ -1,0 +1,13 @@
+{
+  "description": "ROUNDED keyword is stripped but not emitted — both results identical",
+  "category": "rounding",
+  "inputs": {
+    "WS-A": "10",
+    "WS-B": "3"
+  },
+  "expected_outputs": {
+    "WS-TRUNC": "3.33",
+    "WS-ROUND": "3.33"
+  },
+  "notes": "ROUNDED keyword is currently detected and stripped but not implemented. Both COMPUTE statements produce identical ROUND_DOWN results. This test detects if ROUNDED is accidentally enabled."
+}

@@ -1,0 +1,13 @@
+{
+  "description": "COMPUTE with parenthesized multi-operator expression — daily interest calc",
+  "category": "precision",
+  "inputs": {
+    "WS-BASE": "10000.00",
+    "WS-RATE": "0.0500",
+    "WS-DAYS": "090"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "123.28"
+  },
+  "notes": "(10000.00 * 0.0500) / 365 * 90 = 500.00 / 365 * 90 = 1.36986... * 90 = 123.287... truncated to 123.28 (PIC 9(5)V99, TRUNC(STD))."
+}

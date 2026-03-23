@@ -1,0 +1,10 @@
+{
+  "description": "BLANK WHEN ZERO: numeric field displays as spaces when value is zero",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-AMT": "0",
+    "WS-DISPLAY": "     "
+  },
+  "notes": "IBM: BLANK WHEN ZERO replaces display output with spaces when value is 0. Aletheia: blank_when_zero flag is set on CobolDecimal, to_display() returns spaces. However PIC 9(5) is parsed as pic_integers=1 (PIC regex truncated by BLANK keyword). MOVE uses to_display() which returns 1 space, then ljust(5) pads to 5 spaces. Net result matches IBM for the MOVE target. WS-AMT internal .value remains Decimal('0'). GAP: PIC digit count lost when BLANK WHEN ZERO follows PIC clause."
+}

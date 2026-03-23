@@ -1,0 +1,11 @@
+{
+  "description": "IF IS ALPHABETIC class condition: WS-FIELD='HELLO' should test as alphabetic.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-FIELD": "HELLO"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "Y"
+  },
+  "notes": "Engine generates: ws_field.replace(' ','').isalpha(). For PIC X(10), input 'HELLO' gets padded to 'HELLO     '. After replace(' ',''), 'HELLO'.isalpha() is True. IBM COBOL IS ALPHABETIC allows spaces and letters, which matches the engine's replace(' ','').isalpha() approach."
+}

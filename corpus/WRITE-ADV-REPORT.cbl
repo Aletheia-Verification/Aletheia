@@ -1,0 +1,90 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. WRITE-ADV-REPORT.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT RPT-FILE ASSIGN TO 'REPORT.TXT'
+               FILE STATUS IS WS-RPT-STATUS.
+       DATA DIVISION.
+       FILE SECTION.
+       FD RPT-FILE.
+       01 RPT-RECORD                 PIC X(80).
+       WORKING-STORAGE SECTION.
+       01 WS-RPT-STATUS              PIC XX.
+       01 WS-REPORT-TITLE            PIC X(40).
+       01 WS-REPORT-DATE             PIC 9(8).
+       01 WS-DETAIL-LINE             PIC X(80).
+       01 WS-TOTAL-AMOUNT            PIC S9(11)V99 COMP-3.
+       01 WS-LINE-COUNT              PIC 9(3).
+       01 WS-PAGE-NUM                PIC 9(3) VALUE 1.
+       01 WS-LINES-PER-PAGE          PIC 9(2) VALUE 60.
+       01 WS-ACCT-NUM                PIC X(12).
+       01 WS-AMOUNT                  PIC S9(9)V99 COMP-3.
+       01 WS-STATUS-CODE             PIC X(1).
+           88 WS-ACTIVE              VALUE 'A'.
+           88 WS-CLOSED              VALUE 'C'.
+       PROCEDURE DIVISION.
+       0000-MAIN-PROCESS.
+           PERFORM 1000-INITIALIZE
+           PERFORM 1100-OPEN-FILE
+           PERFORM 2000-WRITE-HEADER
+           PERFORM 3000-WRITE-DETAIL
+           PERFORM 4000-WRITE-FOOTER
+           PERFORM 5000-CLOSE-FILE
+           PERFORM 6000-DISPLAY-RESULTS
+           STOP RUN.
+       1000-INITIALIZE.
+           MOVE 0 TO WS-LINE-COUNT
+           MOVE 0 TO WS-TOTAL-AMOUNT
+           MOVE 1 TO WS-PAGE-NUM.
+       1100-OPEN-FILE.
+           OPEN OUTPUT RPT-FILE.
+       2000-WRITE-HEADER.
+           STRING 'REPORT: ' DELIMITED BY SIZE
+                  WS-REPORT-TITLE DELIMITED BY '  '
+                  ' DATE=' DELIMITED BY SIZE
+                  WS-REPORT-DATE DELIMITED BY SIZE
+                  INTO WS-DETAIL-LINE
+           END-STRING
+           MOVE WS-DETAIL-LINE TO RPT-RECORD
+           WRITE RPT-RECORD AFTER ADVANCING PAGE
+           MOVE SPACES TO RPT-RECORD
+           WRITE RPT-RECORD AFTER ADVANCING 1
+           ADD 2 TO WS-LINE-COUNT.
+       3000-WRITE-DETAIL.
+           STRING WS-ACCT-NUM DELIMITED BY SIZE
+                  ' ' DELIMITED BY SIZE
+                  WS-AMOUNT DELIMITED BY SIZE
+                  ' ' DELIMITED BY SIZE
+                  WS-STATUS-CODE DELIMITED BY SIZE
+                  INTO WS-DETAIL-LINE
+           END-STRING
+           MOVE WS-DETAIL-LINE TO RPT-RECORD
+           WRITE RPT-RECORD AFTER ADVANCING 1
+           ADD 1 TO WS-LINE-COUNT
+           ADD WS-AMOUNT TO WS-TOTAL-AMOUNT
+           IF WS-LINE-COUNT >= WS-LINES-PER-PAGE
+               ADD 1 TO WS-PAGE-NUM
+               MOVE 0 TO WS-LINE-COUNT
+           END-IF.
+       4000-WRITE-FOOTER.
+           MOVE SPACES TO RPT-RECORD
+           WRITE RPT-RECORD AFTER ADVANCING 2
+           STRING 'TOTAL: ' DELIMITED BY SIZE
+                  WS-TOTAL-AMOUNT DELIMITED BY SIZE
+                  ' PAGE ' DELIMITED BY SIZE
+                  WS-PAGE-NUM DELIMITED BY SIZE
+                  INTO WS-DETAIL-LINE
+           END-STRING
+           MOVE WS-DETAIL-LINE TO RPT-RECORD
+           WRITE RPT-RECORD AFTER ADVANCING 1.
+       5000-CLOSE-FILE.
+           CLOSE RPT-FILE.
+       6000-DISPLAY-RESULTS.
+           DISPLAY 'REPORT GENERATION'
+           DISPLAY '================='
+           DISPLAY 'TITLE:  ' WS-REPORT-TITLE
+           DISPLAY 'DATE:   ' WS-REPORT-DATE
+           DISPLAY 'LINES:  ' WS-LINE-COUNT
+           DISPLAY 'PAGES:  ' WS-PAGE-NUM
+           DISPLAY 'TOTAL:  ' WS-TOTAL-AMOUNT.

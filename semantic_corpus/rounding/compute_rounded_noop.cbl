@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COMPUTE-ROUNDED-NOOP.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A          PIC S9(5)V99.
+       01  WS-B          PIC S9(5)V99.
+       01  WS-TRUNC      PIC S9(5)V99.
+       01  WS-ROUND      PIC S9(5)V99.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           COMPUTE WS-TRUNC = WS-A / WS-B.
+           COMPUTE WS-ROUND ROUNDED = WS-A / WS-B.
+           STOP RUN.

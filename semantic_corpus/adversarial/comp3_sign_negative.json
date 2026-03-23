@@ -1,0 +1,9 @@
+{
+  "description": "COMP-3 signed negative: PIC S9(5) COMP-3 stores -12345 and sign preserved through MOVE",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "-12345"
+  },
+  "notes": "COMP-3 encodes sign in low nibble of last byte (0xD for negative). Engine uses CobolDecimal with is_signed=True — sign preserved in Decimal value. Negative literal parsing works correctly for MOVE -12345."
+}

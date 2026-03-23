@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM VARYING AFTER: nested loop with 3 outer * 2 inner = 6 iterations.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "6"
+  },
+  "notes": "PERFORM 1000-BODY VARYING WS-I FROM 1 BY 1 UNTIL > 3 AFTER WS-J FROM 1 BY 1 UNTIL > 2. Outer loop runs 3 times (I=1,2,3), inner loop runs 2 times each (J=1,2). Total: 3 * 2 = 6 iterations. Engine correctly generates nested while loops for AFTER clause."
+}

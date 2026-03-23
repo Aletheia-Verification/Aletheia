@@ -1,0 +1,11 @@
+{
+  "description": "EVALUATE WS-X WHEN 1 THRU 5: subject variable with numeric range match.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "3"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "RANGE"
+  },
+  "notes": "EVALUATE subject WHEN value THRU value generates Decimal('1') <= ws_x.value <= Decimal('5'). X=3 falls in range, so WS-RESULT='RANGE'. Engine pads string to PIC X(10) via ljust."
+}

@@ -1,0 +1,15 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. DEC-COMMA.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-AMT             PIC 9(3)V99.
+       01  WS-OUT             PIC 9(3)V99.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           COMPUTE WS-AMT = 123,45.
+           MOVE WS-AMT TO WS-OUT.
+           STOP RUN.

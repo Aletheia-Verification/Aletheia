@@ -1,0 +1,14 @@
+{
+  "description": "ARITH(COMPAT) intermediate precision: (A+B)*C computed with full precision intermediate",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "10000",
+    "WS-B": "20000",
+    "WS-C": "3"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "90000"
+  },
+  "arith_mode": "COMPAT",
+  "notes": "(10000+20000)*3 = 90000. Under ARITH(COMPAT) the intermediate 30000 is within 18-digit range so no truncation. Tests that COMPAT mode is applied without error."
+}

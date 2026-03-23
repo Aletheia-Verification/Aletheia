@@ -8,13 +8,6 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
     const [isLoadingActivity, setIsLoadingActivity] = useState(false);
     const [userInfo, setUserInfo] = useState(null);
 
-    // Password change state
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [passwordError, setPasswordError] = useState('');
-    const [passwordSuccess, setPasswordSuccess] = useState(false);
-
     useEffect(() => {
         if (isOpen && !userInfo) {
             loadUserInfo();
@@ -35,7 +28,7 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
                 setUserInfo(data);
             }
         } catch (error) {
-            console.error('Failed to load user info:', error);
+            if (import.meta.env.DEV) console.error('Failed to load user info:', error);
         }
     };
 
@@ -51,7 +44,7 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
                 setActivityLog(data.security_history || []);
             }
         } catch (error) {
-            console.error('Failed to load activity log:', error);
+            if (import.meta.env.DEV) console.error('Failed to load activity log:', error);
         } finally {
             setIsLoadingActivity(false);
         }
@@ -60,50 +53,6 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
     const handleSignOut = () => {
         localStorage.removeItem('alethia_token');
         window.location.href = '/';
-    };
-
-    const handlePasswordChange = async (e) => {
-        e.preventDefault();
-        setPasswordError('');
-        setPasswordSuccess(false);
-
-        if (newPassword !== confirmPassword) {
-            setPasswordError('New passwords do not match');
-            return;
-        }
-
-        if (newPassword.length < 8) {
-            setPasswordError('Password must be at least 8 characters');
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem('alethia_token');
-            const response = await fetch(apiUrl('/auth/change-password'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    current_password: currentPassword,
-                    new_password: newPassword
-                })
-            });
-
-            if (response.ok) {
-                setPasswordSuccess(true);
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmPassword('');
-                loadActivityLog(); // Refresh to show password change event
-            } else {
-                const data = await response.json();
-                setPasswordError(data.detail || 'Failed to change password');
-            }
-        } catch (error) {
-            setPasswordError('Network error. Please try again.');
-        }
     };
 
     const exportActivityLog = () => {
@@ -210,18 +159,6 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
                             >
                                 <Activity size={14} />
                                 Activity
-                            </button>
-                            <button
-                                onClick={() => setActiveSection('password')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 text-[11px]
-                                         font-mono uppercase tracking-wider transition-all
-                                         ${activeSection === 'password'
-                                        ? 'bg-primary text-black font-bold'
-                                        : 'bg-surface-hover text-text-dim hover:text-text'
-                                    }`}
-                            >
-                                <Key size={14} />
-                                Password
                             </button>
                         </div>
 
@@ -339,93 +276,6 @@ const SecurityPanel = ({ isOpen, setIsOpen }) => {
                                 </div>
                             )}
 
-                            {/* Password Section */}
-                            {activeSection === 'password' && (
-                                <div className="space-y-4">
-                                    <h3 className="text-sm font-mono font-bold text-text uppercase tracking-wider">
-                                        Change Password
-                                    </h3>
-
-                                    {passwordSuccess && (
-                                        <div className="p-3 text-[11px] font-mono"
-                                            style={{
-                                                background: 'var(--color-success-bg)',
-                                                border: '1px solid var(--color-success-border)',
-                                                color: 'var(--color-success-text)'
-                                            }}>
-                                            ✓ Password changed successfully
-                                        </div>
-                                    )}
-
-                                    {passwordError && (
-                                        <div className="p-3 text-[11px] font-mono"
-                                            style={{
-                                                background: 'var(--color-error-bg)',
-                                                border: '1px solid var(--color-error-border)',
-                                                color: 'var(--color-error-text)'
-                                            }}>
-                                            ⚠️ {passwordError}
-                                        </div>
-                                    )}
-
-                                    <form onSubmit={handlePasswordChange} className="space-y-4">
-                                        <div>
-                                            <label className="block text-[11px] font-mono uppercase tracking-wider text-text-dim mb-2">
-                                                Current Password
-                                            </label>
-                                            <input
-                                                type="password"
-                                                value={currentPassword}
-                                                onChange={(e) => setCurrentPassword(e.target.value)}
-                                                required
-                                                className="w-full px-3 py-2.5 bg-surface-elevated border border-border
-                                                         text-[12px] font-mono text-text
-                                                         focus:border-primary/50 outline-none transition-all"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[11px] font-mono uppercase tracking-wider text-text-dim mb-2">
-                                                New Password
-                                            </label>
-                                            <input
-                                                type="password"
-                                                value={newPassword}
-                                                onChange={(e) => setNewPassword(e.target.value)}
-                                                required
-                                                minLength={8}
-                                                className="w-full px-3 py-2.5 bg-surface-elevated border border-border
-                                                         text-[12px] font-mono text-text
-                                                         focus:border-primary/50 outline-none transition-all"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[11px] font-mono uppercase tracking-wider text-text-dim mb-2">
-                                                Confirm New Password
-                                            </label>
-                                            <input
-                                                type="password"
-                                                value={confirmPassword}
-                                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                                required
-                                                className="w-full px-3 py-2.5 bg-surface-elevated border border-border
-                                                         text-[12px] font-mono text-text
-                                                         focus:border-primary/50 outline-none transition-all"
-                                            />
-                                        </div>
-
-                                        <button
-                                            type="submit"
-                                            className="w-full py-3 px-4 bg-primary text-black font-mono font-bold
-                                                     text-[11px] uppercase tracking-wider hover:bg-primary-hover
-                                                     transition-all"
-                                        >
-                                            Update Password
-                                        </button>
-                                    </form>
-                                </div>
-                            )}
                         </div>
                     </div>
         </>

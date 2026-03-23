@@ -1,0 +1,17 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. VARY-ACCUM.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-ITEM1       PIC 9(3)V99.
+       01  WS-ITEM2       PIC 9(3)V99.
+       01  WS-ITEM3       PIC 9(3)V99.
+       01  WS-ITEM4       PIC 9(3)V99.
+       01  WS-TOTAL       PIC 9(5)V99.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 0 TO WS-TOTAL.
+           ADD WS-ITEM1 TO WS-TOTAL.
+           ADD WS-ITEM2 TO WS-TOTAL.
+           ADD WS-ITEM3 TO WS-TOTAL.
+           ADD WS-ITEM4 TO WS-TOTAL.
+           STOP RUN.

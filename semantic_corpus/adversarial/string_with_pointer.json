@@ -1,0 +1,12 @@
+{
+  "description": "STRING DELIMITED BY SIZE with POINTER starting at 1",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "HELLO"
+  },
+  "expected_outputs": {
+    "WS-TGT": "HELLO               ",
+    "WS-PTR": "6"
+  },
+  "notes": "Engine emits _pos = int(ws_ptr.value) - 1 = 0, then overlays concat at position 0. PTR advances to 6 (1 + len('HELLO')). IBM POINTER starts at 1 (1-based). Target is 20 chars with spaces after HELLO."
+}

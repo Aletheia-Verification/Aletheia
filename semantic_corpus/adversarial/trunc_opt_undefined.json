@@ -1,0 +1,10 @@
+{
+  "description": "TRUNC(OPT) passes through value without truncation: 9999 stored as-is",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "9999"
+  },
+  "trunc_mode": "OPT",
+  "notes": "TRUNC(OPT) behavior is undefined per IBM spec when value exceeds PIC digits. The engine passes through the raw value without truncation, unlike TRUNC(STD) which would give 999 (9999 mod 10^3)."
+}

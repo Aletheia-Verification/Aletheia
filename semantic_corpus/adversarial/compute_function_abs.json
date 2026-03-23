@@ -1,0 +1,11 @@
+{
+  "description": "FUNCTION ABS \u00e2\u20ac\u201d absolute value of negative signed number",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": -42
+  },
+  "expected_outputs": {
+    "WS-RESULT": "42"
+  },
+  "notes": "ABS(-42) = 42. Tests signed PIC S9 input with unsigned PIC 9 output. In supported intrinsics list."
+}

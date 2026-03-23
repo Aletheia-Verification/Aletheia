@@ -1,0 +1,12 @@
+{
+  "description": "PERFORM paragraph containing STRING — concatenates WS-A and WS-B into WS-OUT",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "HELLO",
+    "WS-B": "WORLD"
+  },
+  "expected_outputs": {
+    "WS-OUT": "HELLOWORLD"
+  },
+  "notes": "PERFORM PARA-BUILD calls paragraph that executes STRING WS-A WS-B DELIMITED BY SIZE INTO WS-OUT. Result = 'HELLO' + 'WORLD' = 'HELLOWORLD'. Tests STRING verb inside a PERFORMed paragraph rather than inline."
+}

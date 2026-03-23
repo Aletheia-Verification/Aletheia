@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PERF-STOP.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-FLAG         PIC X(5) VALUE 'INIT'.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           PERFORM PARA-A.
+           MOVE 'AFTER' TO WS-FLAG.
+           STOP RUN.
+       PARA-A.
+           MOVE 'INSID' TO WS-FLAG.
+           STOP RUN.

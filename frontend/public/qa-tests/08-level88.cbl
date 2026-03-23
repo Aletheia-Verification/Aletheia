@@ -1,0 +1,17 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. LEVEL88-TEST.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-STATUS PIC X(2).
+          88 STATUS-ACTIVE  VALUE 'AC'.
+          88 STATUS-CLOSED  VALUE 'CL'.
+          88 STATUS-PENDING VALUE 'PN' 'PD'.
+       01 WS-MSG    PIC X(20).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           SET STATUS-ACTIVE TO TRUE.
+           IF STATUS-ACTIVE
+               MOVE 'ACCOUNT ACTIVE' TO WS-MSG
+           END-IF.
+           DISPLAY WS-MSG.
+           STOP RUN.

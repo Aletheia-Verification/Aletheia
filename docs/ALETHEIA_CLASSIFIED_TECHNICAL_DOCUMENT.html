@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ALETHEIA — Classified Technical Document</title>
+<style>
+  @page { size: A4; margin: 2cm; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #222;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px;
+  }
+  h1 { font-size: 22pt; border-bottom: 2px solid #888; padding-bottom: 8px; margin-top: 40px; page-break-before: always; }
+  h1:first-of-type { page-break-before: avoid; }
+  h2 { font-size: 16pt; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-top: 30px; }
+  h3 { font-size: 13pt; margin-top: 24px; }
+  code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-family: "Consolas", "Courier New", monospace; font-size: 10pt; }
+  pre { background: #f5f5f5; color: #222; border: 1px solid #ddd; padding: 14px; border-radius: 4px; overflow-x: auto; font-size: 9pt; line-height: 1.4; page-break-inside: avoid; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 10pt; }
+  th { background: #e8e8e8; color: #222; padding: 8px 12px; text-align: left; border: 1px solid #ccc; font-weight: bold; }
+  td { border: 1px solid #ccc; padding: 6px 12px; }
+  tr:nth-child(even) { background: #f9f9f9; }
+  blockquote { border-left: 3px solid #999; margin: 20px 0; padding: 10px 20px; background: #fafafa; font-style: italic; }
+  hr { border: none; border-top: 1px solid #aaa; margin: 30px 0; }
+  @media print {
+    body { padding: 0; font-size: 10pt; }
+    pre { font-size: 8pt; border: 1px solid #ccc; }
+    h1 { page-break-before: always; }
+    h1:first-of-type { page-break-before: avoid; }
+  }
+</style>
+</head>
+<body>
+<h1 id="aletheia-classified-technical-document">ALETHEIA — Classified Technical Document</h1>
+<p><strong>Classification: INTERNAL — FOR STUDY ONLY</strong>
+<strong>Version: 1.0 | March 2026</strong>
+<strong>Prepared for: Hector Gras</strong></p>
+<hr />
+<blockquote>
+<p><em>"The question is not whether the Python code looks right.</em>
+<em>The question is whether it behaves identically to the mainframe."</em></p>
+</blockquote>
+<hr />
+<h1 id="table-of-contents">Table of Contents</h1>
+<ol>
+<li><a href="#part-1-what-aletheia-is">What Aletheia Is</a></li>
+<li><a href="#part-2-cobol-crash-course">COBOL Crash Course</a></li>
+<li><a href="#part-3-the-pipeline-deep-dive">The Pipeline Deep Dive</a></li>
+<li><a href="#part-4-the-supporting-modules">The Supporting Modules</a></li>
+<li><a href="#part-5-every-fix-and-why">Every Fix and Why</a></li>
+<li><a href="#part-6-the-audit-results">The Audit Results</a></li>
+<li><a href="#part-7-the-business">The Business</a></li>
+<li><a href="#part-8-glossary">Glossary</a></li>
+</ol>
+<hr />
+<h1 id="part-1-what-aletheia-is">Part 1: What Aletheia Is</h1>
+<h2 id="the-3-trillion-problem">The $3 Trillion Problem</h2>
+<p>Banks run on COBOL. Not a little bit — almost all of it. Here are the numbers:</p>
+<ul>
+<li><strong>220 billion lines</strong> of COBOL code are running in production today</li>
+<li><strong>95%</strong> of ATM transactions touch COBOL</li>
+<li><strong>80%</strong> of in-person payment processing runs on COBOL</li>
+<li><strong>$3 trillion</strong> in daily commerce flows through COBOL systems</li>
+<li>The average COBOL programmer is <strong>over 55 years old</strong> and retiring</li>
+</ul>
+<p>These systems were written in the 1960s through 1990s. They run on IBM mainframes — refrigerator-sized computers that cost $10 million each. Banks want to move to modern cloud infrastructure (Python, Java, Kubernetes), but they can't just rewrite 220 billion lines of code.</p>
+<p>Why? Because COBOL handles money. And money demands perfection.</p>
+<p>If you migrate a banking system and introduce a 1-cent rounding error on each of 1 billion daily transactions, that's <strong>$10 million per day</strong> in unexplained discrepancies. Regulators shut the bank down. Customers sue. The migration team gets fired.</p>
+<p>This is why every large COBOL migration attempt in history has either failed spectacularly (like the UK's TSB bank in 2018, which lost access to 1.9 million accounts) or taken 5-10 years to complete.</p>
+<h2 id="the-insight-verify-dont-translate">The Insight: Verify, Don't Translate</h2>
+<p>Every other company in this space tries to <strong>translate</strong> COBOL to Python using AI. They feed the COBOL into GPT-4 or a fine-tuned model and get Python code out. The code looks reasonable. It might even pass some tests. But it has subtle precision bugs — the kind that surface after processing 10 million real transactions.</p>
+<p>Aletheia takes a fundamentally different approach. We don't care if the Python "looks" right. We care if it <strong>behaves identically</strong> to the mainframe.</p>
+<p>The process:</p>
+<ol>
+<li>Parse the COBOL using a formal grammar (no AI involved)</li>
+<li>Generate Python deterministically from the parse tree (no AI involved)</li>
+<li>Feed the same real input data to both the mainframe and the Python</li>
+<li>Compare every output field to the exact penny</li>
+<li>If they match perfectly: <strong>VERIFIED</strong>. If even one field differs: <strong>DRIFT DETECTED</strong>.</li>
+</ol>
+<p>No confidence scores. No percentages. No "probably correct." Binary verdict: it matches, or it doesn't.</p>
+<h2 id="the-pipeline">The Pipeline</h2>
+<pre><code>┌──────────┐    ┌───────────┐    ┌──────────────┐    ┌──────────────┐
+│  COBOL   │───&gt;│  ANTLR4   │───&gt;│   PYTHON     │───&gt;│  SHADOW      │
+│  SOURCE  │    │  PARSER   │    │  GENERATOR   │    │  DIFF        │
+│  (.cbl)  │    │           │    │              │    │  ENGINE      │
+└──────────┘    └───────────┘    └──────────────┘    └──────┬───────┘
+                     │                  │                     │
+                     ▼                  ▼                     ▼
+              ┌─────────────┐   ┌─────────────┐   ┌─────────────────┐
+              │ Analysis    │   │ Python      │   │ VERIFIED        │
+              │ Dict        │   │ Module      │   │ or              │
+              │ (structured │   │ (executable │   │ DRIFT DETECTED  │
+              │  data)      │   │  code)      │   │ (with causes)   │
+              └─────────────┘   └─────────────┘   └─────────────────┘
+</code></pre>
+<p>The key insight is that <strong>AI is never in the correctness path</strong>. The parser uses a formal ANTLR4 grammar (same technology that powers Java and Kotlin compilers). The generator is a deterministic rule-based transformer. The comparator does exact decimal matching.</p>
+<p>GPT-4o is only used for one thing: formatting human-readable explanations after the verification is complete. It can't affect the VERIFIED/DRIFT verdict.</p>
+<h2 id="why-this-matters">Why This Matters</h2>
+<pre><code>  Competitors (AI Translation):        Aletheia (Behavioral Verification):
+  ┌────────┐     ┌─────────┐           ┌────────┐     ┌───────────┐
+  │ COBOL  │────&gt;│ AI/LLM  │──&gt; Python │ COBOL  │────&gt;│ PARSER +  │──&gt; Python
+  └────────┘     └─────────┘    (hope   └────────┘     │ GENERATOR │    (proven
+                                 it's                   └───────────┘     match)
+                                 right)                      │
+                                          ┌─────────┐       ▼
+                                          │MAINFRAME│──&gt;┌──────────┐
+                                          │ OUTPUT  │   │ COMPARE  │──&gt; PROOF
+                                          └─────────┘──&gt;└──────────┘
+</code></pre>
+<p>Banks don't need another translation tool. They need <strong>proof that the migration is safe</strong>. That's what Aletheia provides.</p>
+<hr />
+<h1 id="part-2-cobol-crash-course">Part 2: COBOL Crash Course</h1>
+<p>Before you can understand how Aletheia works, you need to understand what COBOL looks like and why it's hard to work with. This section teaches you enough COBOL to read every example in this document.</p>
+<h2 id="what-cobol-looks-like">What COBOL Looks Like</h2>
+<p>COBOL was designed in 1959 by a team led by Grace Hopper. It was intentionally designed to read like English, so that business managers could understand the programs. Every COBOL program has four sections (called "DIVISIONS"):</p>
+<pre><code>┌─────────────────────────────────────────────────┐
+│ IDENTIFICATION DIVISION.                         │  ← &quot;Who am I?&quot;
+│   PROGRAM-ID. LOAN-INTEREST-CALC.                │     (program name)
+├─────────────────────────────────────────────────┤
+│ ENVIRONMENT DIVISION.                            │  ← &quot;What external
+│   SELECT LOAN-FILE ASSIGN TO 'LOANS.DAT'        │     files do I use?&quot;
+├─────────────────────────────────────────────────┤
+│ DATA DIVISION.                                   │  ← &quot;What variables
+│   WORKING-STORAGE SECTION.                       │     do I have?&quot;
+│   01 WS-AMOUNT PIC S9(9)V99 COMP-3.             │
+│   01 WS-RATE   PIC 9V9(4).                      │
+├─────────────────────────────────────────────────┤
+│ PROCEDURE DIVISION.                              │  ← &quot;What do I DO?&quot;
+│   COMPUTE WS-INTEREST = WS-AMOUNT * WS-RATE     │     (the logic)
+│   DISPLAY WS-INTEREST                            │
+│   STOP RUN.                                      │
+└─────────────────────────────────────────────────┘
+</code></pre>
+<p>Here's Aletheia's primary test file — a real loan interest calculator:</p>
+<pre><code class="language-cobol">IDENTIFICATION DIVISION.
+   PROGRAM-ID. LOAN-INTEREST-CALC.
+
+   DATA DIVISION.
+   WORKING-STORAGE SECTION.
+
+   01 WS-ACCOUNT-DATA.
+      05 WS-ACCOUNT-NUM        PIC X(10).
+      05 WS-PRINCIPAL-BAL      PIC S9(9)V99 COMP-3.
+      05 WS-ANNUAL-RATE        PIC S9(3)V9(6) COMP-3.
+      05 WS-DAYS-IN-YEAR       PIC 9(3) VALUE 365.
+      05 WS-ACCRUED-INT        PIC S9(9)V99 COMP-3.
+
+   01 WS-ACCOUNT-FLAGS.
+      05 WS-VIP-FLAG           PIC X(1).
+         88 IS-VIP-ACCOUNT     VALUE 'Y'.
+         88 IS-STANDARD        VALUE 'N'.
+      05 WS-RATE-DISCOUNT      PIC S9(1)V9(4) COMP-3.
+
+   PROCEDURE DIVISION.
+
+   0000-MAIN-PROCESS.
+       PERFORM 1000-INIT-CALCULATION
+       PERFORM 2000-COMPUTE-DAILY-RATE
+       PERFORM 3000-APPLY-VIP-DISCOUNT
+       PERFORM 4000-CALCULATE-INTEREST
+       PERFORM 5000-CHECK-LATE-PENALTY
+       PERFORM 6000-FINALIZE-AMOUNT
+       STOP RUN.
+</code></pre>
+<p>Let's break down every piece of this.</p>
+<h2 id="data-division-pic-clauses-the-memory-ruler">DATA DIVISION: PIC Clauses (The Memory Ruler)</h2>
+<p>In Python, you write <code>x = 42</code> and Python figures out that x is an integer. COBOL is the opposite — you must declare exactly how much memory each variable gets, down to the digit.</p>
+<p>The <strong>PIC clause</strong> (short for "PICTURE") is how COBOL declares the size and type of every variable. Think of it as a ruler that measures exactly how many digits the variable can hold:</p>
+<pre><code>PIC S9(5)V99  means:
+
+  S         9(5)           V          99
+  │         │              │          │
+  sign      5 integer      decimal    2 decimal
+  (+/-)     digits         point      digits
+                           (implied,
+                            not stored)
+
+  This variable can hold: -99999.99 to +99999.99
+  And NOTHING bigger. If you try to store 100000.00, it wraps around.
+</code></pre>
+<p>Here's a reference table:</p>
+<table>
+<thead>
+<tr>
+<th>PIC Clause</th>
+<th>Type</th>
+<th>Can Hold</th>
+<th>Example Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PIC 9(5)</code></td>
+<td>Unsigned integer</td>
+<td>0 to 99999</td>
+<td><code>12345</code></td>
+</tr>
+<tr>
+<td><code>PIC S9(5)</code></td>
+<td>Signed integer</td>
+<td>-99999 to +99999</td>
+<td><code>-12345</code></td>
+</tr>
+<tr>
+<td><code>PIC S9(5)V99</code></td>
+<td>Signed decimal</td>
+<td>-99999.99 to +99999.99</td>
+<td><code>-12345.67</code></td>
+</tr>
+<tr>
+<td><code>PIC X(10)</code></td>
+<td>Text string</td>
+<td>10 characters</td>
+<td><code>"HELLO     "</code></td>
+</tr>
+<tr>
+<td><code>PIC 9(3) VALUE 365</code></td>
+<td>With default</td>
+<td>0 to 999, starts at 365</td>
+<td><code>365</code></td>
+</tr>
+<tr>
+<td><code>PIC S9(1)V9(4)</code></td>
+<td>Small decimal</td>
+<td>-9.9999 to +9.9999</td>
+<td><code>0.0025</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Critical insight</strong>: The <code>V</code> in a PIC clause is an <em>implied</em> decimal point. It's never stored in memory — the program just knows that the last 2 digits are decimal places. The number <code>-12345.67</code> is stored as the digits <code>1234567</code> with the sign embedded.</p>
+<h2 id="levels-and-groups-nested-data-structures">Levels and Groups (Nested Data Structures)</h2>
+<p>COBOL uses level numbers to create nested structures, like folders within folders:</p>
+<pre><code>01 WS-CUSTOMER.                     ← GROUP (level 01, contains everything below)
+   05 WS-NAME        PIC X(20).     ← FIELD (level 05, 20-char text)
+   05 WS-ACCOUNT.                   ← SUB-GROUP (level 05, contains 10-level items)
+      10 WS-ACCT-NUM  PIC 9(8).     ← FIELD (level 10, 8-digit number)
+      10 WS-ACCT-TYPE PIC X(1).     ← FIELD (level 10, 1 character)
+   05 WS-BALANCE     PIC S9(9)V99.  ← FIELD (level 05, signed decimal)
+</code></pre>
+<p>Think of it like a folder structure:</p>
+<pre><code>📁 WS-CUSTOMER (group — all 30 bytes)
+ ├── 📄 WS-NAME (20 bytes)
+ ├── 📁 WS-ACCOUNT (sub-group — 9 bytes)
+ │    ├── 📄 WS-ACCT-NUM (8 bytes)
+ │    └── 📄 WS-ACCT-TYPE (1 byte)
+ └── 📄 WS-BALANCE (11 bytes)
+</code></pre>
+<p><strong>Level 88</strong> is special — it's not a variable at all. It's a named condition (like a boolean test):</p>
+<pre><code class="language-cobol">01 WS-VIP-FLAG       PIC X(1).
+   88 IS-VIP-ACCOUNT  VALUE 'Y'.     ← means: WS-VIP-FLAG == 'Y'
+   88 IS-STANDARD     VALUE 'N'.     ← means: WS-VIP-FLAG == 'N'
+</code></pre>
+<p>When the COBOL says <code>IF IS-VIP-ACCOUNT</code>, it really means <code>IF WS-VIP-FLAG = 'Y'</code>. The 88-level is just syntactic sugar — a named test on its parent.</p>
+<h2 id="procedure-division-how-cobol-programs-execute">PROCEDURE DIVISION: How COBOL Programs Execute</h2>
+<p>COBOL organizes code into <strong>paragraphs</strong> (like functions). The main entry point calls other paragraphs using <code>PERFORM</code>:</p>
+<pre><code class="language-cobol">0000-MAIN-PROCESS.
+    PERFORM 1000-INIT-CALCULATION      ← Call a paragraph (like a function call)
+    PERFORM 2000-COMPUTE-DAILY-RATE
+    PERFORM 3000-APPLY-VIP-DISCOUNT
+    STOP RUN.                          ← End the program
+
+2000-COMPUTE-DAILY-RATE.
+    COMPUTE WS-DAILY-RATE =            ← Compute with full precision
+       WS-ANNUAL-RATE / WS-DAYS-IN-YEAR.
+
+3000-APPLY-VIP-DISCOUNT.
+    IF IS-VIP-ACCOUNT                  ← 88-level condition test
+       COMPUTE WS-DAILY-RATE =
+          WS-DAILY-RATE - WS-RATE-DISCOUNT
+       IF WS-DAILY-RATE &lt; 0
+          MOVE 0 TO WS-DAILY-RATE      ← Floor at zero
+       END-IF
+    END-IF.
+</code></pre>
+<p>Key COBOL verbs:
+- <strong>PERFORM</strong>: Call a paragraph (like calling a function)
+- <strong>COMPUTE</strong>: Do math with full precision, then truncate on store
+- <strong>MOVE</strong>: Copy a value from one variable to another
+- <strong>IF / ELSE / END-IF</strong>: Conditional logic
+- <strong>EVALUATE / WHEN / WHEN OTHER</strong>: Like a switch statement
+- <strong>ADD / SUBTRACT / MULTIPLY / DIVIDE</strong>: Explicit arithmetic
+- <strong>GO TO</strong>: Jump to a paragraph (dangerous, but used everywhere in old code)
+- <strong>STOP RUN</strong>: End the program
+- <strong>DISPLAY</strong>: Print to the console</p>
+<h2 id="data-types-display-vs-comp-vs-comp-3">Data Types: DISPLAY vs COMP vs COMP-3</h2>
+<p>This is where COBOL gets tricky. The same number can be stored in completely different byte formats depending on the storage type:</p>
+<h3 id="display-default-human-readable">DISPLAY (default — human-readable)</h3>
+<p>One byte per digit, using EBCDIC encoding. The sign is embedded in the last byte using a technique called "overpunch":</p>
+<pre><code>Value: -12345  in PIC S9(5) DISPLAY
+
+┌──────┬──────┬──────┬──────┬──────┐
+│  F1  │  F2  │  F3  │  F4  │  D5  │  = 5 bytes
+└──────┴──────┴──────┴──────┴──────┘
+  '1'    '2'    '3'    '4'   '-5'
+                              ↑
+                         D = negative sign
+                         F = positive/unsigned
+                         C = positive (explicit)
+</code></pre>
+<p>The last byte encodes both the digit AND the sign. <code>F5</code> means positive 5, <code>D5</code> means negative 5. This encoding is called "zoned decimal" or "overpunch."</p>
+<h3 id="comp-3-packed-decimal-the-important-one">COMP-3 (Packed Decimal — the important one)</h3>
+<p>Two digits per byte, with the sign in the last half-byte (nibble). This is how most numeric fields are stored on mainframes because it saves space:</p>
+<pre><code>Value: +12345.67  in PIC S9(5)V99 COMP-3
+
+Step 1: Remove the implied decimal point → 1234567
+Step 2: Pack two digits per byte, sign in last nibble
+
+┌──────────┬──────────┬──────────┬──────────┐
+│   01     │   23     │   45     │  67  C   │  = 4 bytes
+│ (0)(1)   │ (2)(3)   │ (4)(5)   │ (6)(7)↑  │
+└──────────┴──────────┴──────────┴─────────┘
+                                       │
+                               C = positive (0x0C)
+                               D = negative (0x0D)
+                               F = unsigned  (0x0F)
+
+DISPLAY stores 12345.67 in 7 bytes (one per digit)
+COMP-3  stores 12345.67 in 4 bytes (saves 43%!)
+</code></pre>
+<p>Aletheia's COMP-3 decoder (from <code>shadow_diff.py</code>) processes this byte-by-byte:</p>
+<pre><code class="language-python">def decode_comp3(raw_bytes: bytes, decimals: int = 0) -&gt; Decimal:
+    &quot;&quot;&quot;Decode IBM COMP-3 (packed BCD) bytes to Decimal.&quot;&quot;&quot;
+    if not raw_bytes:
+        return Decimal(&quot;0&quot;)
+
+    nibbles = []
+    for b in raw_bytes:
+        nibbles.append((b &gt;&gt; 4) &amp; 0x0F)   # high nibble (first digit)
+        nibbles.append(b &amp; 0x0F)           # low nibble  (second digit)
+
+    sign_nibble = nibbles[-1]               # last nibble is the sign
+    digit_nibbles = nibbles[:-1]            # everything else is digits
+
+    digits_str = &quot;&quot;.join(str(n) for n in digit_nibbles)
+
+    if decimals &gt; 0 and len(digits_str) &gt; decimals:
+        integer_part = digits_str[:-decimals]
+        decimal_part = digits_str[-decimals:]
+        num_str = f&quot;{integer_part}.{decimal_part}&quot;
+    elif decimals &gt; 0:
+        num_str = f&quot;0.{digits_str.zfill(decimals)}&quot;
+    else:
+        num_str = digits_str
+
+    result = Decimal(num_str)
+
+    if sign_nibble == 0x0D:       # 0x0D = negative
+        result = -result
+
+    return result
+</code></pre>
+<h3 id="comp-comp-4-pure-binary">COMP / COMP-4 (Pure Binary)</h3>
+<p>Stored as big-endian binary integers, just like how computers normally store numbers:</p>
+<pre><code>PIC S9(4)  COMP → 2 bytes (halfword, max 32,767)
+PIC S9(9)  COMP → 4 bytes (fullword, max 2,147,483,647)
+PIC S9(18) COMP → 8 bytes (doubleword)
+
+Value: 12345 in PIC S9(9) COMP:
+┌──────────┬──────────┬──────────┬──────────┐
+│    00    │    00    │    30    │    39    │  = 4 bytes
+└──────────┴──────────┴──────────┴──────────┘
+= 0x00003039 = 12345 in big-endian binary
+</code></pre>
+<h2 id="ebcdic-why-string-comparison-is-broken">EBCDIC: Why String Comparison Is Broken</h2>
+<p>Mainframes don't use ASCII. They use EBCDIC (Extended Binary Coded Decimal Interchange Code), which was invented by IBM in 1963. The critical difference is the <strong>collating sequence</strong> — the order characters are sorted in:</p>
+<pre><code>ASCII  (what Python uses natively):   EBCDIC (what mainframes use):
+┌──────────────────────────────┐      ┌──────────────────────────────┐
+│ space  (0x20)  LOWEST        │      │ space  (0x40)  LOWEST        │
+│ '0'-'9' (0x30-0x39)         │      │ 'a'-'z' (0x81-0xA9)         │
+│ 'A'-'Z' (0x41-0x5A)         │      │ 'A'-'Z' (0xC1-0xE9)         │
+│ 'a'-'z' (0x61-0x7A)  HIGHEST│      │ '0'-'9' (0xF0-0xF9)  HIGHEST│
+└──────────────────────────────┘      └──────────────────────────────┘
+</code></pre>
+<p>This means:
+- In ASCII: <code>'9' &gt; 'Z'</code> is <strong>FALSE</strong> (0x39 &lt; 0x5A)
+- In EBCDIC: <code>'9' &gt; 'Z'</code> is <strong>TRUE</strong> (0xF9 &gt; 0xE9)
+- In ASCII: <code>'a' &lt; 'A'</code> is <strong>FALSE</strong> (0x61 &gt; 0x41)
+- In EBCDIC: <code>'a' &lt; 'A'</code> is <strong>TRUE</strong> (0x81 &lt; 0xC1)</p>
+<p>If you generate Python that uses normal Python string comparison (<code>if name_a &gt; name_b</code>), you get WRONG answers for any string comparison that involves mixed case or digits. The Shadow Diff engine would catch this as DRIFT.</p>
+<p>Aletheia solves this with <code>ebcdic_compare()</code> — a function that encodes both strings to EBCDIC bytes before comparing:</p>
+<pre><code class="language-python">def ebcdic_compare(a: str, b: str, codepage: str = &quot;cp037&quot;) -&gt; int:
+    &quot;&quot;&quot;Compare two strings using EBCDIC byte ordering.&quot;&quot;&quot;
+    max_len = max(len(a), len(b))
+    a_bytes = a.ljust(max_len).encode(codepage)  # pad shorter string with spaces
+    b_bytes = b.ljust(max_len).encode(codepage)
+    if a_bytes &lt; b_bytes:
+        return -1
+    if a_bytes &gt; b_bytes:
+        return 1
+    return 0
+</code></pre>
+<p>Notice the <code>.ljust(max_len)</code> — in COBOL, when you compare strings of different lengths, the shorter one is padded with spaces. This matches mainframe behavior.</p>
+<h2 id="redefines-one-memory-two-views">REDEFINES: One Memory, Two Views</h2>
+<p>REDEFINES lets two variables share the exact same bytes in memory. It's like a C <code>union</code> — different interpretations of the same raw data:</p>
+<pre><code class="language-cobol">01 WS-DATE.
+   05 WS-DATE-TEXT    PIC X(8).          ← &quot;20260317&quot; (text view)
+01 WS-DATE-PARTS REDEFINES WS-DATE.
+   05 WS-YEAR         PIC 9(4).          ← 2026
+   05 WS-MONTH        PIC 9(2).          ← 03
+   05 WS-DAY          PIC 9(2).          ← 17
+
+Memory (same 8 bytes, two different views):
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ '2'│ '0'│ '2'│ '6'│ '0'│ '3'│ '1'│ '7'│
+└────┴────┴────┴────┴────┴────┴────┴────┘
+├──── WS-DATE-TEXT (all 8 bytes) ────────┤
+├── WS-YEAR ──┤├─ MONTH ─┤├── DAY ──┤
+</code></pre>
+<p>Write to WS-DATE-TEXT and WS-YEAR/WS-MONTH/WS-DAY automatically change, because they're reading the same memory. This is heavily used in banking COBOL and is extremely tricky to replicate in Python (Aletheia uses <code>CobolMemoryRegion</code> — a shared byte buffer).</p>
+<h2 id="compiler-options-trunc-mode">Compiler Options: TRUNC Mode</h2>
+<p>IBM mainframes have compiler flags that change how arithmetic works. The most important one is <strong>TRUNC</strong> (truncation mode):</p>
+<pre><code>When you do: COMPUTE WS-RESULT = BIG-NUMBER * BIG-NUMBER
+             and the result doesn't fit in WS-RESULT's PIC...
+
+┌──────── What TRUNC mode? ─────────┐
+│                                    │
+▼                ▼                   ▼
+STD              BIN                 OPT
+(Standard)       (Binary)            (Optimized)
+│                │                   │
+│ Mod PIC cap    │ Is it COMP?       │ No truncation
+│ (wrap around)  │  YES: keep full   │ (trust the
+│                │  NO:  mod PIC     │  programmer)
+│                │                   │
+▼                ▼                   ▼
+S9(3): max 999   S9(4) COMP:        Result passes
+1500 → 500       max 32767          through as-is
+(1500 mod 1000)  (full halfword)    ⚠️ DANGEROUS
+</code></pre>
+<p><strong>TRUNC(STD)</strong> is the IBM default. If a number overflows the PIC capacity, it wraps around using modular arithmetic. This is not a bug — it's intentional mainframe behavior that every bank relies on. If Aletheia doesn't replicate this wrapping, the Shadow Diff shows drift.</p>
+<h2 id="why-cobol-is-hard-to-migrate">Why COBOL Is Hard to Migrate</h2>
+<p>Now you understand enough to see why migration is treacherous:</p>
+<ol>
+<li>
+<p><strong>Truncation on store, not during computation</strong>: COBOL does math with full precision, but truncates (chops off excess digits) only when storing the result. Most Python programmers would truncate during computation, giving different results.</p>
+</li>
+<li>
+<p><strong>COMP-3 packed decimal</strong>: There's no Python equivalent. You need a custom class that packs/unpacks nibbles.</p>
+</li>
+<li>
+<p><strong>EBCDIC collating sequence</strong>: Python string comparison gives wrong answers for any program that sorts or compares strings.</p>
+</li>
+<li>
+<p><strong>Fixed-point arithmetic</strong>: COBOL never uses floating-point. Everything is <code>Decimal</code> with explicit precision. Using Python <code>float</code> anywhere would introduce rounding errors.</p>
+</li>
+<li>
+<p><strong>REDEFINES</strong>: Two variables sharing memory means changing one changes the other. Python doesn't have this concept natively.</p>
+</li>
+<li>
+<p><strong>PIC-based overflow wrapping</strong>: <code>PIC 9(3)</code> holding the value 1500 wraps to 500. This is correct mainframe behavior that must be replicated exactly.</p>
+</li>
+<li>
+<p><strong>Zoned decimal overpunch</strong>: The sign of a number is embedded in the last digit byte. Parsing this wrong gives wrong results.</p>
+</li>
+</ol>
+<hr />
+<h1 id="part-3-the-pipeline-deep-dive">Part 3: The Pipeline Deep Dive</h1>
+<p>This section explains every module in Aletheia's pipeline — what it does, what goes in, what comes out, the key design decisions, and the known limitations.</p>
+<h2 id="module-1-antlr-parser-cobol_analyzer_apipy-1900-lines">Module 1: ANTLR Parser (<code>cobol_analyzer_api.py</code>, ~1,900 lines)</h2>
+<h3 id="what-it-does">What It Does</h3>
+<p>Takes raw COBOL source code and produces a structured analysis dictionary. Uses the ANTLR4 COBOL85 formal grammar — the same kind of parser technology that powers Java and Kotlin compilers.</p>
+<h3 id="how-it-works">How It Works</h3>
+<pre><code>INPUT                          PROCESS                      OUTPUT
+┌──────────────────┐   ┌─────────────────────┐   ┌──────────────────────┐
+│ COBOL source     │   │ 1. Lexer splits     │   │ analysis dict:       │
+│ (raw text)       │──&gt;│    into tokens      │──&gt;│  variables: [...]    │
+│                  │   │ 2. Parser builds    │   │  paragraphs: [...]   │
+│                  │   │    parse tree       │   │  computes: [...]     │
+│                  │   │ 3. FullAnalyzer     │   │  level_88: [...]     │
+│                  │   │    walks tree and   │   │  file_operations: [] │
+│                  │   │    fires listeners  │   │  control_flow: [...]  │
+└──────────────────┘   └─────────────────────┘   └──────────────────────┘
+</code></pre>
+<p>The parser uses the <strong>Listener pattern</strong>. Instead of manually walking the tree, ANTLR4 automatically fires callback methods for every node type it encounters:</p>
+<ul>
+<li><code>enterComputeStatement()</code> fires for every COMPUTE</li>
+<li><code>enterIfStatement()</code> fires for every IF</li>
+<li><code>enterMoveStatement()</code> fires for every MOVE</li>
+<li><code>enterPerformStatement()</code> fires for every PERFORM</li>
+<li>... and dozens more</li>
+</ul>
+<p>The <code>FullAnalyzer</code> class implements all these listeners and collects everything into a single analysis dictionary.</p>
+<h3 id="key-function-parse_pic_clause">Key Function: parse_pic_clause()</h3>
+<p>This function converts a PIC string into structured metadata:</p>
+<pre><code class="language-python">def parse_pic_clause(pic_raw):
+    &quot;&quot;&quot;
+    Parse a PIC clause string into structured metadata.
+    Examples:
+        &quot;S9(5)V99&quot;   -&gt; {signed:True,  integers:5,  decimals:2}
+        &quot;9(3)&quot;       -&gt; {signed:False, integers:3,  decimals:0}
+        &quot;X(10)&quot;      -&gt; None  (string type — no arithmetic analysis)
+    &quot;&quot;&quot;
+    upper = pic_raw.upper().strip()
+    if not upper or 'X' in upper or 'Z' in upper:
+        return None  # String type — skip arithmetic analysis
+
+    signed = upper.startswith('S')
+    if signed:
+        upper = upper[1:]
+
+    int_part, dec_part = (upper.split('V', 1) if 'V' in upper else (upper, ''))
+
+    def count_nines(part):
+        return sum(
+            int(m.group(1)) if m.group(1) else 1
+            for m in re.finditer(r'9(?:\((\d+)\))?', part)
+        )
+
+    integers = count_nines(int_part)
+    decimals = count_nines(dec_part) if dec_part else 0
+
+    max_str = '9' * integers + ('.' + '9' * decimals if decimals else '')
+    max_val = Decimal(max_str)
+    return {
+        &quot;signed&quot;: signed,
+        &quot;integers&quot;: integers,
+        &quot;decimals&quot;: decimals,
+        &quot;max_value&quot;: str(max_val),
+    }
+</code></pre>
+<p>So <code>PIC S9(5)V99</code> becomes <code>{signed: True, integers: 5, decimals: 2, max_value: "99999.99"}</code>.</p>
+<h3 id="the-analysis-dict-output-structure">The Analysis Dict (Output Structure)</h3>
+<p>The parser produces a dictionary with everything the generator needs:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>What It Contains</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>variables</code></td>
+<td>Every variable declaration: name, PIC, storage type, section</td>
+</tr>
+<tr>
+<td><code>paragraphs</code></td>
+<td>List of paragraph names</td>
+</tr>
+<tr>
+<td><code>paragraphs_full</code></td>
+<td>Full paragraph contents with every statement</td>
+</tr>
+<tr>
+<td><code>computes</code></td>
+<td>Every COMPUTE statement with its text and paragraph</td>
+</tr>
+<tr>
+<td><code>level_88</code></td>
+<td>Every 88-level condition: name, parent, value</td>
+</tr>
+<tr>
+<td><code>performs</code></td>
+<td>Every PERFORM statement: target paragraph, type (THRU, VARYING, etc.)</td>
+</tr>
+<tr>
+<td><code>moves</code></td>
+<td>Every MOVE statement</td>
+</tr>
+<tr>
+<td><code>arithmetics</code></td>
+<td>ADD, SUBTRACT, MULTIPLY, DIVIDE statements</td>
+</tr>
+<tr>
+<td><code>conditions</code></td>
+<td>IF/EVALUATE structures (nested)</td>
+</tr>
+<tr>
+<td><code>file_operations</code></td>
+<td>OPEN, READ, WRITE, CLOSE, REWRITE, SORT</td>
+</tr>
+<tr>
+<td><code>control_flow</code></td>
+<td>GO TO, STOP RUN, EXIT statements</td>
+</tr>
+<tr>
+<td><code>strings</code></td>
+<td>STRING/UNSTRING/INSPECT statements</td>
+</tr>
+<tr>
+<td><code>displays</code></td>
+<td>DISPLAY statements</td>
+</tr>
+<tr>
+<td><code>sort_statements</code></td>
+<td>SORT with USING/GIVING or INPUT/OUTPUT PROCEDURE</td>
+</tr>
+<tr>
+<td><code>release_statements</code></td>
+<td>RELEASE (for SORT INPUT PROCEDURE)</td>
+</tr>
+<tr>
+<td><code>return_statements</code></td>
+<td>RETURN (for SORT OUTPUT PROCEDURE)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="design-decisions">Design Decisions</h3>
+<p><strong>Why Listener, not Visitor?</strong> COBOL has hundreds of grammar rules (the ANTLR4 grammar file is over 10,000 lines). With a Listener, ANTLR automatically calls the right method for every node — you don't need to write traversal code. With a Visitor, you'd need to manually visit every child, which is error-prone for such a complex grammar.</p>
+<p><strong>Why not just use regex?</strong> COBOL has deeply nested structures (IF inside EVALUATE inside PERFORM THRU ranges). Regex can't handle nesting — you need a proper parser. ANTLR4 is the industry standard.</p>
+<h3 id="limitations">Limitations</h3>
+<p>If the parser encounters a construct it doesn't recognize, it logs a <code>parse_warning</code> and continues. The generator will later emit <code># MANUAL REVIEW</code> for anything it can't safely handle. Nothing is silently skipped — every unrecognized construct is tracked.</p>
+<hr />
+<h2 id="module-2-code-generator-generate_full_pythonpy-3900-lines">Module 2: Code Generator (<code>generate_full_python.py</code>, ~3,900 lines)</h2>
+<h3 id="what-it-does_1">What It Does</h3>
+<p>Takes the analysis dictionary from the parser and emits a complete, executable Python module. This is the largest file in Aletheia (3,900 lines) because it handles every COBOL construct.</p>
+<h3 id="how-it-works_1">How It Works</h3>
+<pre><code>INPUT                          PROCESS                       OUTPUT
+┌──────────────────┐   ┌──────────────────────┐   ┌──────────────────────┐
+│ analysis dict    │   │ 1. Build var_info    │   │ Python module:       │
+│ (from parser)    │──&gt;│ 2. Build 88-level map│──&gt;│  - imports           │
+│                  │   │ 3. Emit variables    │   │  - CobolDecimal vars │
+│ + compiler       │   │ 4. Emit paragraphs   │   │  - paragraph funcs   │
+│   config         │   │ 5. Emit main()       │   │  - main() function   │
+│ (TRUNC mode)     │   │ 6. Emit validation   │   │  - validation report │
+└──────────────────┘   └──────────────────────┘   └──────────────────────┘
+</code></pre>
+<h3 id="cobol-python-transformation-the-key-concept">COBOL → Python Transformation (The Key Concept)</h3>
+<p>This is the heart of Aletheia. Here's how a COBOL variable declaration becomes Python:</p>
+<pre><code>COBOL:                                  PYTHON:
+┌────────────────────────────────┐      ┌─────────────────────────────────────┐
+│ 05 WS-PRINCIPAL-BAL            │      │ ws_principal_bal = CobolDecimal(    │
+│    PIC S9(9)V99 COMP-3.       │ ──&gt;  │     '0',                            │
+│                                │      │     pic_integers=9,                 │
+│                                │      │     pic_decimals=2,                 │
+│                                │      │     is_signed=True,                 │
+│                                │      │     is_comp=True)                   │
+└────────────────────────────────┘      └─────────────────────────────────────┘
+</code></pre>
+<p>And here's how a COMPUTE becomes Python:</p>
+<pre><code>COBOL:                                  PYTHON:
+┌────────────────────────────────┐      ┌─────────────────────────────────────┐
+│ COMPUTE WS-DAILY-RATE =       │      │ _temp = ws_annual_rate.value        │
+│    WS-ANNUAL-RATE /           │ ──&gt;  │         / ws_days_in_year.value     │
+│    WS-DAYS-IN-YEAR.           │      │ ws_daily_rate.store(_temp)          │
+└────────────────────────────────┘      └─────────────────────────────────────┘
+</code></pre>
+<p>Notice the critical pattern: <strong>compute with full precision</strong> using <code>.value</code> (raw Decimal), then <strong>truncate on store</strong> using <code>.store()</code>. This matches exactly how IBM mainframes work — arithmetic happens at maximum precision, truncation only happens when the result is stored in the target variable.</p>
+<h3 id="arithmetic-risk-analysis">Arithmetic Risk Analysis</h3>
+<p>The generator analyzes every arithmetic operation for overflow risk:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Result Digits</th>
+<th>Risk Level</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ADD / SUB</td>
+<td>max(A, B) + 1</td>
+<td>SAFE if result fits PIC</td>
+<td>5-digit + 5-digit = 6 digits max</td>
+</tr>
+<tr>
+<td>MULTIPLY</td>
+<td>A + B</td>
+<td>WARN if close to PIC</td>
+<td>5-digit × 3-digit = 8 digits max</td>
+</tr>
+<tr>
+<td>DIVIDE</td>
+<td>unbounded</td>
+<td>CRITICAL</td>
+<td>denominator could approach 0</td>
+</tr>
+</tbody>
+</table>
+<p>Each operation is classified as <strong>SAFE</strong> (result always fits), <strong>WARN</strong> (could overflow under certain inputs), or <strong>CRITICAL</strong> (overflow is likely or unbounded).</p>
+<h3 id="the-side-by-side-validation-report">The Side-by-Side Validation Report</h3>
+<p>Every generated Python module includes a comment block at the end that shows the COBOL → Python mapping for every statement:</p>
+<pre><code class="language-python"># ═══════════════════════════════════════════════════════════════
+# SIDE-BY-SIDE VALIDATION REPORT
+# ═══════════════════════════════════════════════════════════════
+# COBOL Statement                          Python Equivalent              Status
+# ────────────────────────────────────── ──────────────────────────────── ──────
+# COMPUTE WS-DAILY-RATE = WS-ANNUAL-RAT ws_daily_rate.store(ws_annual_r [OK]
+# IF IS-VIP-ACCOUNT                      if ws_vip_flag == 'Y':          [OK]
+# MOVE 0 TO WS-DAILY-RATE               ws_daily_rate.store(Decimal('0' [OK]
+# ADD WS-DAILY-INTEREST TO WS-ACCRUED-I ws_accrued_int.store(ws_accrued [OK]
+</code></pre>
+<p>This lets a human auditor quickly verify that every COBOL statement has a corresponding Python implementation.</p>
+<h3 id="what-triggers-manual-review">What Triggers MANUAL REVIEW</h3>
+<p>When the generator encounters a construct it can't safely emit as Python, it writes a comment instead of generating wrong code:</p>
+<pre><code class="language-python"># MANUAL REVIEW: ALTER — dynamic paragraph modification not supported
+# MANUAL REVIEW: EXEC SQL SELECT INTO :WS-BALANCE — external system coupling
+</code></pre>
+<p>This is a <strong>hard architectural decision</strong>: it's better to flag something for human review than to generate code that might be wrong. A bank losing money because of a subtle bug is far worse than a bank needing to manually handle 6 programs out of 100.</p>
+<h3 id="return-format">Return Format</h3>
+<pre><code class="language-python">generate_python_module(analysis, compiler_config) -&gt; {
+    &quot;code&quot;: str,              # Complete Python module text
+    &quot;emit_counts&quot;: {          # How many of each statement type were emitted
+        &quot;move&quot;: 12, &quot;compute&quot;: 5, &quot;add_sub&quot;: 3,
+        &quot;perform&quot;: 8, &quot;io&quot;: 4, ...
+    },
+    &quot;compiler_warnings&quot;: [],  # Warnings about TRUNC mode, etc.
+    &quot;db2_tainted_fields&quot;: [], # Fields populated by EXEC SQL
+}
+</code></pre>
+<hr />
+<h2 id="module-3-parse-conditions-parse_conditionspy-1700-lines">Module 3: Parse Conditions (<code>parse_conditions.py</code>, ~1,700 lines)</h2>
+<h3 id="what-it-does_2">What It Does</h3>
+<p>Converts COBOL IF/ELSE and EVALUATE/WHEN conditions into Python boolean expressions. This is where 88-level conditions, EBCDIC comparisons, and array subscript access get resolved.</p>
+<h3 id="how-it-works_2">How It Works</h3>
+<p>The ANTLR parser gives us the raw condition text (e.g., <code>WS-AMT&gt;100ANDIS-VIP-ACCOUNT</code>). This module breaks that apart and generates the Python equivalent.</p>
+<table>
+<thead>
+<tr>
+<th>COBOL Condition</th>
+<th>Python Output</th>
+<th>What Happened</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IF WS-AMT &gt; 100</code></td>
+<td><code>if ws_amt.value &gt; Decimal('100'):</code></td>
+<td>Numeric comparison uses <code>.value</code></td>
+</tr>
+<tr>
+<td><code>IF WS-FLAG = 'Y'</code></td>
+<td><code>if ws_flag == 'Y':</code></td>
+<td>String comparison, no <code>.value</code></td>
+</tr>
+<tr>
+<td><code>IF IS-VIP-ACCOUNT</code></td>
+<td><code>if ws_vip_flag == 'Y':</code></td>
+<td>88-level expanded to parent test</td>
+</tr>
+<tr>
+<td><code>IF WS-TBL(WS-IDX) &lt; 50</code></td>
+<td><code>if ws_tbl[int(ws_idx.value)-1].value &lt; Decimal('50'):</code></td>
+<td>1-indexed → 0-indexed</td>
+</tr>
+<tr>
+<td><code>IF WS-NAME &gt; WS-OTHER</code></td>
+<td><code>if ebcdic_compare(ws_name, ws_other) &gt; 0:</code></td>
+<td>EBCDIC-aware string ordering</td>
+</tr>
+<tr>
+<td><code>IF WS-AMT IS NUMERIC</code></td>
+<td><code>if isinstance(ws_amt.value, Decimal):</code></td>
+<td>Class condition test</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-design-decision-longest-match-first">Key Design Decision: Longest-Match-First</h3>
+<p>When resolving variable names in a condition, the module sorts known variables by length (longest first). This prevents <code>WS-FOO</code> from matching inside <code>WS-FOO-BAR</code>. Without this, <code>IF WS-FOO-BAR &gt; 10</code> would incorrectly resolve as <code>ws_foo</code> followed by garbage.</p>
+<h3 id="how-evaluate-is-handled">How EVALUATE Is Handled</h3>
+<p>COBOL's <code>EVALUATE</code> is like a switch statement, but more powerful:</p>
+<pre><code class="language-cobol">EVALUATE TRUE                         →  Python:
+  WHEN WS-BALANCE &gt; 100000                if ws_balance.value &gt; Decimal('100000'):
+    PERFORM HIGH-VALUE-PROCESS                high_value_process()
+  WHEN WS-BALANCE &gt; 10000                 elif ws_balance.value &gt; Decimal('10000'):
+    PERFORM MED-VALUE-PROCESS                 med_value_process()
+  WHEN OTHER                               else:
+    PERFORM LOW-VALUE-PROCESS                 low_value_process()
+END-EVALUATE
+</code></pre>
+<hr />
+<h2 id="module-4-cobol-types-cobol_typespy-690-lines">Module 4: COBOL Types (<code>cobol_types.py</code>, ~690 lines)</h2>
+<h3 id="what-it-does_3">What It Does</h3>
+<p>This is the precision engine — the most important module for correctness. <code>CobolDecimal</code> wraps Python's <code>Decimal</code> to enforce PIC-based truncation rules exactly as IBM mainframes do.</p>
+<h3 id="the-core-class-coboldecimal">The Core Class: CobolDecimal</h3>
+<pre><code class="language-python">class CobolDecimal:
+    def __init__(self, value='0', pic_integers=1, pic_decimals=0,
+                 is_signed=False, is_comp=False):
+        self.pic_integers = pic_integers
+        self.pic_decimals = pic_decimals
+        self.is_signed = is_signed
+        self.is_comp = is_comp
+        self._scale = Decimal(10) ** -pic_decimals if pic_decimals &gt; 0 else Decimal(1)
+        self._max_int = Decimal(10) ** pic_integers
+        self.value = Decimal('0')
+        self.store(value)
+</code></pre>
+<p>The <code>.store()</code> method is the critical method — it applies PIC truncation:</p>
+<pre><code class="language-python">def store(self, value):
+    # Convert to Decimal regardless of input type
+    raw = Decimal(str(value))
+    # Apply truncation (the important part)
+    self.value = self._apply_truncation(raw)
+</code></pre>
+<p>And <code>_apply_truncation()</code> implements the TRUNC mode logic:</p>
+<pre><code class="language-python">def _apply_truncation(self, raw):
+    config = get_config()  # Get current TRUNC mode
+
+    # Step 1: Quantize to PIC decimal places (ALWAYS, all modes)
+    raw = raw.quantize(self._scale, rounding=ROUND_DOWN)
+
+    # Step 2: Mode-specific integer truncation
+    if config.trunc_mode == &quot;OPT&quot;:
+        # Compiler trusts programmer — no integer truncation
+        return raw
+
+    if config.trunc_mode == &quot;BIN&quot; and self.is_comp:
+        # COMP items keep full binary range — no mod truncation
+        return raw
+
+    # TRUNC(STD) — standard: mod to PIC capacity
+    if abs(raw) &gt;= self._max_int:
+        sign = Decimal('-1') if raw &lt; 0 else Decimal('1')
+        integer_part = abs(raw) // 1
+        decimal_part = abs(raw) % 1
+        truncated_int = integer_part % self._max_int  # THE MOD OPERATION
+        raw = sign * (truncated_int + decimal_part)
+
+    return raw
+</code></pre>
+<h3 id="worked-example-truncation-in-action">Worked Example: Truncation in Action</h3>
+<pre><code>PIC S9(3)V99, TRUNC(STD):
+
+Input value: 123456.789
+  Step 1: Quantize to 2 decimal places → 123456.78 (ROUND_DOWN, not ROUND_HALF_UP!)
+  Step 2: TRUNC(STD) → 123456.78 mod 1000 = 456.78
+  Step 3: Signed field, positive input → +456.78
+
+Output: 456.78
+
+This is CORRECT mainframe behavior. On a real IBM mainframe,
+storing 123456.789 into PIC S9(3)V99 gives exactly 456.78.
+If Aletheia gave any other answer, Shadow Diff would catch it.
+</code></pre>
+<h3 id="why-round_down-not-round_half_up">Why ROUND_DOWN, Not ROUND_HALF_UP?</h3>
+<p>COBOL's default rounding is <strong>truncation</strong> (chop off extra digits), not banker's rounding. <code>123.456</code> stored in PIC V99 becomes <code>123.45</code>, not <code>123.46</code>. The <code>ROUNDED</code> keyword explicitly enables rounding, but it's opt-in, not the default.</p>
+<h3 id="cobolmemoryregion-redefines-support">CobolMemoryRegion: REDEFINES Support</h3>
+<p>For REDEFINES (where multiple variables share the same memory), Aletheia uses a shared byte buffer:</p>
+<pre><code class="language-python">class CobolMemoryRegion:
+    &quot;&quot;&quot;Byte-backed shared storage for REDEFINES groups.&quot;&quot;&quot;
+    def __init__(self, size):
+        self._buffer = bytearray(size)
+
+    def register_field(self, name, offset, length, ...):
+        # Register where each variable lives in the buffer
+
+    def get(self, name):
+        # Decode bytes at (offset, length) → Decimal or string
+
+    def put(self, name, value):
+        # Encode value → bytes at (offset, length)
+</code></pre>
+<p>When you write to one field, any overlapping field automatically "sees" the new value because they share the same bytes — exactly like on a mainframe.</p>
+<hr />
+<h2 id="module-5-shadow-diff-shadow_diffpy-1357-lines">Module 5: Shadow Diff (<code>shadow_diff.py</code>, ~1,357 lines)</h2>
+<h3 id="what-it-does_4">What It Does</h3>
+<p>The proof engine. Takes real mainframe input/output data, feeds inputs through the generated Python, and compares every output field against the mainframe's actual output. No epsilon tolerance — exact <code>Decimal</code> match required.</p>
+<h3 id="architecture">Architecture</h3>
+<pre><code>┌──────────────┐                          ┌──────────────┐
+│ MAINFRAME    │    ┌──────────────┐      │ MAINFRAME    │
+│ INPUT FILE   │───&gt;│ PARSE FIXED  │      │ OUTPUT FILE  │
+│ (flat file)  │    │ WIDTH STREAM │      │ (flat file)  │
+└──────────────┘    └──────┬───────┘      └──────┬───────┘
+                           │                      │
+                    ┌──────▼───────┐        ┌─────▼────────┐
+                    │  Input       │        │  Expected     │
+                    │  Records     │        │  Output       │
+                    │  (generator) │        │  Records      │
+                    └──────┬───────┘        └──────┬────────┘
+                           │                       │
+                    ┌──────▼───────┐               │
+                    │  EXECUTE     │               │
+                    │  GENERATED   │               │
+                    │  PYTHON      │               │
+                    └──────┬───────┘               │
+                           │                       │
+                    ┌──────▼───────────────────────▼──┐
+                    │  COMPARE FIELD BY FIELD           │
+                    │  (exact Decimal match — no        │
+                    │   epsilon tolerance whatsoever)    │
+                    └──────────────┬───────────────────┘
+                                   │
+                    ┌──────────────▼──────────────────┐
+                    │  ZERO DRIFT CONFIRMED            │
+                    │  or                               │
+                    │  DRIFT DETECTED — N RECORDS       │
+                    │  + diagnose_drift() root causes   │
+                    └──────────────────────────────────┘
+</code></pre>
+<h3 id="the-streaming-pipeline-50-gb-on-a-laptop">The Streaming Pipeline (50 GB on a Laptop)</h3>
+<p>The critical design decision: everything is a <strong>Python generator</strong>. <code>parse_fixed_width_stream()</code> yields one record at a time. <code>execute_generated_python()</code> yields one result at a time. The comparator processes one pair at a time.</p>
+<p>This means the system never loads the entire file into memory. A 50 GB file uses the same amount of RAM as a 50 KB file — only one record is in memory at any given moment.</p>
+<pre><code class="language-python">def run_streaming_pipeline(source, input_stream, mainframe_stream, ...):
+    &quot;&quot;&quot;Full pipeline - constant RAM regardless of file size.&quot;&quot;&quot;
+    for aletheia_rec, mainframe_rec in zip(
+        execute_generated_python(source, input_records, ...),
+        parse_fixed_width_stream(mainframe_layout, mainframe_data)
+    ):
+        mismatches = compare_one_record(aletheia_rec, mainframe_rec)
+        # Process and discard — never accumulate in memory
+</code></pre>
+<h3 id="diagnose_drift-root-cause-analysis">diagnose_drift(): Root Cause Analysis</h3>
+<p>When drift is detected, Aletheia doesn't just say "these don't match." It analyzes the pattern and suggests a root cause:</p>
+<table>
+<thead>
+<tr>
+<th>Mismatch Pattern</th>
+<th>Likely Cause</th>
+<th>Suggested Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Difference is exactly 1 in last decimal</td>
+<td>Rounding divergence</td>
+<td>Check ROUNDED keyword usage</td>
+</tr>
+<tr>
+<td>Comp-3 field, sign differs</td>
+<td>Sign nibble mismatch</td>
+<td>Verify COMP-3 decoder</td>
+</tr>
+<tr>
+<td>Numeric off by factor of 10^n</td>
+<td>Decimal position error</td>
+<td>Check PIC V placement</td>
+</tr>
+<tr>
+<td>String fields differ</td>
+<td>EBCDIC collation</td>
+<td>Verify ebcdic_compare() codepage</td>
+</tr>
+<tr>
+<td>All zeros vs expected value</td>
+<td>S0C7 abend</td>
+<td>Check input data for non-numeric content</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="module-6-file-io-cobol_file_iopy-338-lines">Module 6: File I/O (<code>cobol_file_io.py</code>, ~338 lines)</h2>
+<h3 id="what-it-does_5">What It Does</h3>
+<p>Provides an abstract I/O layer so generated Python can read/write files in two different contexts: testing (in-memory) and production (real disk files).</p>
+<h3 id="the-two-backend-architecture">The Two-Backend Architecture</h3>
+<pre><code>Generated Python calls:           CobolFileManager routes to backend:
+┌──────────────────────┐          ┌──────────────────────────────┐
+│ _io_open('FILE','r') │─────────&gt;│ backend.open('FILE','r')     │
+│ _io_read('FILE')     │─────────&gt;│ backend.read('FILE')         │
+│ _io_write('REC')     │─────────&gt;│ backend.write('FILE', data)  │
+│ _io_rewrite('REC')   │─────────&gt;│ backend.rewrite('FILE', ...) │
+│ _io_close('FILE')    │─────────&gt;│ backend.close('FILE')        │
+└──────────────────────┘          └─────────────┬────────────────┘
+                                                 │
+                                  ┌──────────────┼──────────────┐
+                                  ▼                              ▼
+                        ┌─────────────────┐           ┌─────────────────┐
+                        │  StreamBackend  │           │ RealFileBackend │
+                        │  (in-memory)    │           │  (disk files)   │
+                        │                 │           │                 │
+                        │ For Shadow Diff │           │ For CLI batch   │
+                        │ and unit tests  │           │ and production  │
+                        └─────────────────┘           └─────────────────┘
+</code></pre>
+<p>This mirrors how IBM mainframes actually work. On a mainframe, JCL (Job Control Language) assigns logical file names to physical datasets. The COBOL program never knows where the data actually lives — it just says <code>READ LOAN-FILE</code>. The OS handles the routing.</p>
+<p>In Aletheia, <code>CobolFileManager</code> plays the role of the OS: it takes the logical file name and routes it to whatever backend is configured.</p>
+<hr />
+<h2 id="module-7-ebcdic-utils-ebcdic_utilspy-102-lines">Module 7: EBCDIC Utils (<code>ebcdic_utils.py</code>, 102 lines)</h2>
+<h3 id="what-it-does_6">What It Does</h3>
+<p>Provides EBCDIC-aware string comparison functions. The entire module is only 102 lines — clean enough to understand completely.</p>
+<p>Python's standard library already supports EBCDIC encoding via the <code>codecs</code> module:</p>
+<pre><code class="language-python">&quot;A&quot;.encode(&quot;cp037&quot;)  # → b'\xc1' (EBCDIC byte for 'A')
+&quot;A&quot;.encode(&quot;ascii&quot;)  # → b'\x41' (ASCII byte for 'A')
+</code></pre>
+<p>The key function pads shorter strings with spaces (COBOL behavior), encodes both to EBCDIC bytes, and compares:</p>
+<pre><code class="language-python">def ebcdic_compare(a, b, codepage=&quot;cp037&quot;):
+    max_len = max(len(a), len(b))
+    a_bytes = a.ljust(max_len).encode(codepage)
+    b_bytes = b.ljust(max_len).encode(codepage)
+    if a_bytes &lt; b_bytes: return -1
+    if a_bytes &gt; b_bytes: return 1
+    return 0
+</code></pre>
+<p>The generated Python uses this for every PIC X comparison:
+- <code>IF WS-NAME &gt; WS-OTHER</code> → <code>if ebcdic_compare(ws_name, ws_other) &gt; 0:</code>
+- Numeric comparisons (PIC 9) use normal Python <code>&gt;</code> on <code>.value</code></p>
+<hr />
+<h2 id="module-8-copybook-resolver-copybook_resolverpy-567-lines">Module 8: Copybook Resolver (<code>copybook_resolver.py</code>, ~567 lines)</h2>
+<h3 id="what-it-does_7">What It Does</h3>
+<p>Preprocesses COBOL source before ANTLR parsing — expands <code>COPY</code> statements (like <code>#include</code> in C), applies text substitutions, and maps REDEFINES byte offsets.</p>
+<h3 id="before-after">Before → After</h3>
+<pre><code>BEFORE:                                 AFTER:
+┌────────────────────────────────┐      ┌────────────────────────────────┐
+│ WORKING-STORAGE SECTION.       │      │ WORKING-STORAGE SECTION.       │
+│   COPY PAYROLL                 │      │   05 WS-NEW-SALARY             │
+│     REPLACING                  │ ──&gt;  │      PIC S9(9)V99.             │
+│     ==WS-OLD== BY ==WS-NEW==. │      │   05 WS-NEW-DEPT               │
+│                                │      │      PIC X(10).                │
+│   01 WS-BONUS PIC 9(5).       │      │   01 WS-BONUS PIC 9(5).        │
+└────────────────────────────────┘      └────────────────────────────────┘
+</code></pre>
+<p>The <code>REPLACING</code> clause does text substitution: everywhere <code>WS-OLD</code> appears in the copybook, it gets replaced with <code>WS-NEW</code>.</p>
+<h3 id="safety-features">Safety Features</h3>
+<ul>
+<li><strong>Circular detection</strong>: If COPYBOOK-A includes COPYBOOK-B which includes COPYBOOK-A, it stops after 10 levels and emits <code>* MANUAL REVIEW: Circular COPY</code></li>
+<li><strong>Missing copybooks</strong>: Not fatal — emits <code>* MANUAL REVIEW: COPY not resolved</code> and continues</li>
+<li><strong>Reverse processing</strong>: COPY statements are expanded in reverse order so string positions stay valid</li>
+</ul>
+<hr />
+<h2 id="module-9-layout-generator-layout_generatorpy-578-lines">Module 9: Layout Generator (<code>layout_generator.py</code>, ~578 lines)</h2>
+<h3 id="what-it-does_8">What It Does</h3>
+<p>Auto-generates Shadow Diff layout JSON from the COBOL DATA DIVISION. The layout tells Shadow Diff how to parse the flat file — field names, byte offsets, lengths, and types.</p>
+<h3 id="two-paths">Two Paths</h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>When Used</th>
+<th>How Fields Are Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FD-based</strong> (binary)</td>
+<td>When the program has File Description entries</td>
+<td>Actual storage bytes (COMP-3 = packed, COMP = binary)</td>
+</tr>
+<tr>
+<td><strong>WORKING-STORAGE fallback</strong> (text)</td>
+<td>When no FD entries found</td>
+<td>Display representation bytes (one byte per digit)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="variable-classification">Variable Classification</h3>
+<p>The generator doesn't just look at the DATA DIVISION — it also scans the generated Python to classify each variable:</p>
+<ul>
+<li><strong>Input</strong>: Variable is read but never computed (populated from file)</li>
+<li><strong>Output</strong>: Variable has real computations (result of arithmetic)</li>
+<li><strong>Constant</strong>: Has a VALUE clause and is never modified</li>
+<li><strong>Dead</strong>: Never read or computed (pruned from layout)</li>
+</ul>
+<p>This classification determines which fields appear in the input vs. output side of the Shadow Diff layout.</p>
+<hr />
+<h1 id="part-4-the-supporting-modules">Part 4: The Supporting Modules</h1>
+<p>These modules extend the core pipeline with additional capabilities.</p>
+<h2 id="dead-code-analyzer-dead_code_analyzerpy-160-lines">Dead Code Analyzer (<code>dead_code_analyzer.py</code>, 160 lines)</h2>
+<p>Finds unreachable paragraphs using breadth-first search (BFS) from the program entry point:</p>
+<pre><code>INPUT: paragraphs + control flow       OUTPUT: reachable / unreachable
+┌──────────────────────────────┐       ┌──────────────────────────────┐
+│ PARA-A: PERFORM PARA-B       │       │ PARA-A: REACHABLE            │
+│ PARA-B: GO TO PARA-D         │ BFS → │ PARA-B: REACHABLE            │
+│ PARA-C: DISPLAY 'HELLO'      │       │ PARA-C: DEAD CODE            │
+│ PARA-D: STOP RUN             │       │ PARA-D: REACHABLE            │
+└──────────────────────────────┘       └──────────────────────────────┘
+</code></pre>
+<p>The algorithm builds a graph of paragraph calls (PERFORM → target, GO TO → target, fall-through to next paragraph) and does BFS from the first paragraph. Any paragraph not visited is dead code.</p>
+<p><strong>ALTER safety</strong>: If the program contains any ALTER statement (which dynamically changes where GO TO jumps), the analyzer conservatively marks ALL paragraphs as reachable. ALTER makes static analysis impossible because the jump target changes at runtime.</p>
+<h2 id="abend-handler-abend_handlerpy-283-lines">Abend Handler (<code>abend_handler.py</code>, 283 lines)</h2>
+<p>Emulates IBM S0C7 Data Exception — the mainframe crash that happens when you try to do arithmetic on non-numeric data. On a real mainframe, this crashes the entire program. In Aletheia, it raises a <code>S0C7DataException</code> Python exception so the error can be caught and reported.</p>
+<p>Also handles <strong>zoned decimal overpunch</strong> decoding:
+- Positive: <code>{ = 0, A = 1, B = 2, ... I = 9</code>
+- Negative: <code>} = 0, J = 1, K = 2, ... R = 9</code>
+- Example: The text <code>"12L"</code> means the number <code>-123</code> (L = negative 3)</p>
+<h2 id="exec-sql-parser-exec_sql_parserpy-313-lines">EXEC SQL Parser (<code>exec_sql_parser.py</code>, 313 lines)</h2>
+<p>Parses EXEC SQL and EXEC CICS blocks (embedded database/transaction commands in COBOL). Classifies variables into three categories:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Meaning</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TAINTED</strong></td>
+<td>Populated by an external source (database query result)</td>
+<td><code>SELECT balance INTO :WS-BALANCE</code></td>
+</tr>
+<tr>
+<td><strong>USED</strong></td>
+<td>Sent to an external source (query parameter)</td>
+<td><code>WHERE acct_num = :WS-ACCT-NUM</code></td>
+</tr>
+<tr>
+<td><strong>CONTROL</strong></td>
+<td>Drives program flow (SQLCODE return code)</td>
+<td><code>IF SQLCODE = 0</code></td>
+</tr>
+</tbody>
+</table>
+<p>This classification tells the generator which variables have external dependencies and may need manual verification.</p>
+<h2 id="dependency-crawler-dependency_crawlerpy-734-lines">Dependency Crawler (<code>dependency_crawler.py</code>, 734 lines)</h2>
+<p>When a COBOL program calls another program with <code>CALL 'SUB-PROGRAM'</code>, the dependency crawler detects these calls, builds a dependency tree, and orchestrates multi-program batch analysis.</p>
+<pre><code>  MAIN calls SUB-A, SUB-B
+  SUB-A calls SUB-C
+  SUB-B calls SUB-C
+
+  Dependency Tree:             Analysis Order (leaves first):
+       MAIN                     1. SUB-C  (no dependencies)
+      /    \                    2. SUB-A  (depends on SUB-C)
+   SUB-A   SUB-B                3. SUB-B  (depends on SUB-C)
+      \    /                    4. MAIN   (depends on A, B)
+      SUB-C
+</code></pre>
+<p>Programs are analyzed in <strong>topological order</strong> (leaves first) so that when we analyze MAIN, we already know the results for SUB-A, SUB-B, and SUB-C.</p>
+<p>The batch verdict is an <strong>AND-gate</strong>: all programs must pass for the batch to be VERIFIED.</p>
+<h2 id="report-signing-report_signingpy-272-lines">Report Signing (<code>report_signing.py</code>, 272 lines)</h2>
+<p>Every verification result is cryptographically signed to prevent tampering. The signing chain works like a mini-blockchain:</p>
+<pre><code>Record 1               Record 2               Record 3
+┌──────────────┐       ┌──────────────┐       ┌──────────────┐
+│ cobol_hash   │       │ cobol_hash   │       │ cobol_hash   │
+│ python_hash  │       │ python_hash  │       │ python_hash  │
+│ report_hash  │       │ report_hash  │       │ report_hash  │
+│ prev: &quot;000&quot;  │──────&gt;│ prev: hash1  │──────&gt;│ prev: hash2  │
+│ chain: hash1 │       │ chain: hash2 │       │ chain: hash3 │
+│ sig: RSA-PSS │       │ sig: RSA-PSS │       │ sig: RSA-PSS │
+└──────────────┘       └──────────────┘       └──────────────┘
+</code></pre>
+<p>Each record's <code>prev_hash</code> points to the previous record's <code>chain_hash</code>. If anyone tampers with Record 2 (changes the verdict, modifies the Python code, etc.), <code>hash2</code> changes, and Record 3's <code>prev_hash</code> no longer matches — the chain is broken.</p>
+<p>The RSA-PSS signature proves that the record was created by Aletheia and hasn't been modified since signing.</p>
+<h2 id="vault-vaultpy-362-lines">Vault (<code>vault.py</code>, 362 lines)</h2>
+<p>Append-only SQLite audit trail. Every <code>/engine/analyze</code> result is stored with:
+- File hash (SHA-256 of COBOL source)
+- Verification status
+- Generated Python code
+- Full report JSON
+- Cryptographic chain hash and signature</p>
+<p>The <code>/vault/verify-chain</code> endpoint walks the entire vault in order, re-verifying every chain link and signature. This is the compliance audit — it proves that no record has been tampered with since creation.</p>
+<h2 id="jcl-parser-jcl_parserpy-402-lines">JCL Parser (<code>jcl_parser.py</code>, 402 lines)</h2>
+<p>Parses IBM Job Control Language into a directed acyclic graph (DAG) of job steps. JCL is the "orchestration language" of mainframes — it tells the system which programs to run, in what order, and which datasets they read/write.</p>
+<p>The parser extracts:
+- <code>EXEC</code> steps (which program to run)
+- <code>DD</code> statements (which datasets to use)
+- <code>DISP</code> (disposition — create, read, modify, delete)
+- Dataset flow analysis (which step produces data that another step consumes)</p>
+<h2 id="sbom-generator-sbom_generatorpy-270-lines">SBOM Generator (<code>sbom_generator.py</code>, 270 lines)</h2>
+<p>Generates a CycloneDX 1.4 Software Bill of Materials — a structured inventory of everything the COBOL program depends on (copybooks, called subprograms, DB2 tables). Uses deterministic UUID-5 hashing so the same program always produces the same SBOM identifier.</p>
+<h2 id="poison-pill-generator-poison_pill_generatorpy-241-lines">Poison Pill Generator (<code>poison_pill_generator.py</code>, 241 lines)</h2>
+<p>Generates edge-case input records to stress-test the generated Python:</p>
+<table>
+<thead>
+<tr>
+<th>Pill</th>
+<th>Value</th>
+<th>What It Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_value</code></td>
+<td>99999.99</td>
+<td>Boundary behavior</td>
+</tr>
+<tr>
+<td><code>zero</code></td>
+<td>0.00</td>
+<td>Division by zero? Initialization?</td>
+</tr>
+<tr>
+<td><code>negative_max</code></td>
+<td>-99999.99</td>
+<td>Sign handling</td>
+</tr>
+<tr>
+<td><code>overflow</code></td>
+<td>100000.00</td>
+<td>One digit beyond PIC capacity</td>
+</tr>
+<tr>
+<td><code>half_cent</code></td>
+<td>0.005</td>
+<td>Rounding boundary (truncate or round?)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="compiler-config-compiler_configpy-66-lines">Compiler Config (<code>compiler_config.py</code>, 66 lines)</h2>
+<p>The smallest but most elegant module. Uses Python's <code>contextvars</code> to store compiler settings (TRUNC mode, ARITH mode) in a way that's isolated per-request in async FastAPI:</p>
+<pre><code class="language-python">from contextvars import ContextVar
+from dataclasses import dataclass
+
+@dataclass
+class CompilerConfig:
+    trunc_mode: str = &quot;STD&quot;        # STD | BIN | OPT
+    arith_mode: str = &quot;COMPAT&quot;     # COMPAT (18 digits) | EXTEND (31 digits)
+    decimal_point: str = &quot;PERIOD&quot;  # PERIOD | COMMA
+    currency_sign: str = &quot;$&quot;
+
+_config_var: ContextVar[CompilerConfig] = ContextVar(
+    &quot;compiler_config&quot;, default=CompilerConfig()
+)
+
+def get_config() -&gt; CompilerConfig:
+    return _config_var.get()
+</code></pre>
+<p>Why <code>ContextVar</code> instead of a global variable? Because FastAPI handles multiple requests concurrently. If Request A sets TRUNC=BIN and Request B sets TRUNC=STD, a global variable would cause them to interfere with each other. <code>ContextVar</code> gives each request its own isolated copy.</p>
+<h2 id="license-manager-license_managerpy-294-lines">License Manager (<code>license_manager.py</code>, 294 lines)</h2>
+<p>Validates RSA-PSS signed license files. Two modes:</p>
+<pre><code>┌──────────────┐    ┌────────────────┐    ┌──────────────┐
+│ license.json │───&gt;│ RSA-PSS Verify │───&gt;│ VALID or     │
+│ license.sig  │    │ (embedded      │    │ INVALID      │
+└──────────────┘    │  public key)   │    └──────┬───────┘
+                    └────────────────┘           │
+                                      ┌──────────▼──────────┐
+                                      │ strict: 403 BLOCKED  │
+                                      │ grace:  50 free      │
+                                      │         analyses     │
+                                      └──────────────────────┘
+</code></pre>
+<hr />
+<h1 id="part-5-every-fix-and-why">Part 5: Every Fix and Why</h1>
+<p>This section documents the major fixes shipped in Aletheia, organized by category. Each fix follows the format: what was broken, why it mattered, and how it was fixed.</p>
+<h2 id="arithmetic-fixes">Arithmetic Fixes</h2>
+<h3 id="fix-truncation-on-store-not-during-computation">Fix: Truncation on Store (Not During Computation)</h3>
+<p><strong>What was broken</strong>: Early versions truncated intermediate arithmetic results, causing precision loss in chained computations.</p>
+<p><strong>Why it matters</strong>: COBOL COMPUTE does full-precision arithmetic, truncating only when storing to the target variable. If you truncate intermediates, a multi-step calculation like <code>A * B / C + D</code> gives different results.</p>
+<p><strong>How it was fixed</strong>: All arithmetic in generated Python uses raw <code>Decimal</code> values (<code>.value</code> property). Truncation only happens in <code>.store()</code>:</p>
+<pre><code class="language-python"># CORRECT (what Aletheia does):
+_temp = ws_a.value * ws_b.value / ws_c.value + ws_d.value  # full precision
+ws_result.store(_temp)  # truncate HERE
+
+# WRONG (what early versions did):
+_t1 = ws_a.value * ws_b.value
+ws_temp1.store(_t1)  # truncated too early!
+_t2 = ws_temp1.value / ws_c.value  # now working with truncated value
+</code></pre>
+<h3 id="fix-multi-target-add-subtract">Fix: Multi-Target ADD / SUBTRACT</h3>
+<p><strong>What was broken</strong>: <code>ADD A TO B C</code> was only adding A to B, ignoring C.</p>
+<p><strong>Why it matters</strong>: COBOL's <code>ADD A TO B C</code> means "add A to both B and C." It's a shorthand that processes multiple targets.</p>
+<pre><code>BEFORE (broken):                       AFTER (fixed):
+┌────────────────────────────────┐     ┌────────────────────────────────┐
+│ ADD A TO B C                   │     │ ADD A TO B C                   │
+│                                │     │                                │
+│ b.store(a.value + b.value)     │     │ b.store(a.value + b.value)     │
+│ # C is untouched!              │     │ c.store(a.value + c.value)     │
+└────────────────────────────────┘     └────────────────────────────────┘
+</code></pre>
+<h3 id="fix-divide-with-remainder">Fix: DIVIDE with REMAINDER</h3>
+<p><strong>What was broken</strong>: <code>DIVIDE A INTO B GIVING C REMAINDER D</code> wasn't populating the remainder variable.</p>
+<p><strong>Why it matters</strong>: Banking applications use DIVIDE REMAINDER for things like allocating cents across accounts (e.g., splitting $100.00 among 3 accounts: $33.33, $33.33, $33.34).</p>
+<p><strong>How it was fixed</strong>: The generator now emits both the quotient and remainder:</p>
+<pre><code class="language-python"># DIVIDE A INTO B GIVING C REMAINDER D
+_quotient = ws_b.value // ws_a.value
+ws_c.store(_quotient)
+_remainder = ws_b.value - (_quotient * ws_a.value)
+ws_d.store(_remainder)
+</code></pre>
+<h3 id="fix-on-size-error-not-on-size-error">Fix: ON SIZE ERROR / NOT ON SIZE ERROR</h3>
+<p><strong>What was broken</strong>: ON SIZE ERROR (COBOL's overflow handler) was being ignored.</p>
+<p><strong>Why it matters</strong>: Banks use ON SIZE ERROR to handle overflow conditions — if a calculation produces a result too large for the target field, execute error-handling logic instead of storing garbage.</p>
+<p><strong>How it was fixed</strong>: The generator now checks overflow before storing:</p>
+<pre><code class="language-python"># COMPUTE WS-RESULT = WS-A * WS-B ON SIZE ERROR PERFORM ERROR-HANDLER
+_ose_val = ws_a.value * ws_b.value
+if ws_result.check_overflow(_ose_val):
+    error_handler()  # ON SIZE ERROR path
+else:
+    ws_result.store(_ose_val)
+    # NOT ON SIZE ERROR path (if specified)
+</code></pre>
+<h3 id="fix-comp-3-overflow-wrapping">Fix: COMP-3 Overflow Wrapping</h3>
+<p><strong>What was broken</strong>: When a COMP-3 field overflowed, the result wasn't wrapping correctly.</p>
+<p><strong>Why it matters</strong>: <code>PIC S9(5)V99</code> can hold max 99999.99. Storing 100000.00 should wrap to 00000.00 (that's 100000 mod 100000 = 0). This is correct mainframe behavior.</p>
+<p><strong>How it was fixed</strong>: The <code>_apply_truncation</code> method uses modular arithmetic: <code>integer_part % self._max_int</code>.</p>
+<h2 id="string-handling-fixes">String Handling Fixes</h2>
+<h3 id="fix-ebcdic-string-comparison">Fix: EBCDIC String Comparison</h3>
+<p><strong>What was broken</strong>: PIC X string comparisons used Python's default ASCII ordering.</p>
+<p><strong>Why it matters</strong>: In EBCDIC, <code>'9' &gt; 'Z'</code> is TRUE. In ASCII, it's FALSE. Any COBOL program that compares strings gives wrong results without EBCDIC correction.</p>
+<p><strong>How it was fixed</strong>: The generator detects PIC X variables and emits <code>ebcdic_compare()</code> instead of Python <code>&gt;</code> / <code>&lt;</code> / <code>==</code>.</p>
+<h3 id="fix-spaces-padding-on-move">Fix: SPACES Padding on MOVE</h3>
+<p><strong>What was broken</strong>: Moving a short string to a longer PIC X field didn't pad with spaces.</p>
+<p><strong>Why it matters</strong>: In COBOL, <code>MOVE "AB" TO WS-FIELD</code> (where WS-FIELD is PIC X(10)) stores <code>"AB        "</code> (padded with 8 spaces). Programs that later compare this field expect the padding.</p>
+<h3 id="fix-string-delimited-by-size">Fix: STRING DELIMITED BY SIZE</h3>
+<p><strong>What was broken</strong>: The STRING verb (concatenation) wasn't supported.</p>
+<p><strong>Why it matters</strong>: COBOL uses <code>STRING A DELIMITED BY SIZE B DELIMITED BY SIZE INTO C</code> to concatenate strings — it's the COBOL equivalent of <code>C = A + B</code>.</p>
+<h3 id="fix-initialize-mixed-groups">Fix: INITIALIZE Mixed Groups</h3>
+<p><strong>What was broken</strong>: INITIALIZE was setting everything to zero.</p>
+<p><strong>Why it matters</strong>: COBOL's INITIALIZE sets numeric fields to 0 and alphanumeric fields to spaces. A mixed group (containing both types) needs both treatments.</p>
+<h2 id="control-flow-fixes">Control Flow Fixes</h2>
+<h3 id="fix-perform-thru-range">Fix: PERFORM THRU Range</h3>
+<p><strong>What was broken</strong>: <code>PERFORM PARA-A THRU PARA-C</code> was only executing PARA-A and PARA-C, skipping PARA-B.</p>
+<p><strong>Why it matters</strong>: PERFORM THRU executes all paragraphs from A through C in order, including every paragraph in between. Old COBOL programs heavily rely on this for sequential processing.</p>
+<h3 id="fix-perform-varying-loop">Fix: PERFORM VARYING (Loop)</h3>
+<p><strong>What was broken</strong>: PERFORM VARYING (COBOL's for-loop) wasn't generating the correct loop structure.</p>
+<p><strong>Why it matters</strong>: <code>PERFORM VARYING WS-IDX FROM 1 BY 1 UNTIL WS-IDX &gt; 100</code> is COBOL's way of writing a for-loop. The init, increment, and termination condition must all be correct.</p>
+<p><strong>How it was fixed</strong>: The generator emits a while-loop with proper initialization:</p>
+<pre><code class="language-python"># PERFORM VARYING WS-IDX FROM 1 BY 1 UNTIL WS-IDX &gt; 100
+ws_idx.store(Decimal('1'))  # FROM 1
+while not (ws_idx.value &gt; Decimal('100')):  # UNTIL
+    para_body()
+    ws_idx.store(ws_idx.value + Decimal('1'))  # BY 1
+</code></pre>
+<h3 id="fix-set-condition-name-to-true">Fix: SET condition-name TO TRUE</h3>
+<p><strong>What was broken</strong>: <code>SET IS-VIP-ACCOUNT TO TRUE</code> was being ignored.</p>
+<p><strong>Why it matters</strong>: This is COBOL's way of setting the parent variable to the 88-level's value. <code>SET IS-VIP-ACCOUNT TO TRUE</code> means <code>MOVE 'Y' TO WS-VIP-FLAG</code>.</p>
+<h3 id="fix-nested-evaluate-inside-if">Fix: Nested EVALUATE Inside IF</h3>
+<p><strong>What was broken</strong>: EVALUATE statements inside IF branches were being emitted twice — once by the IF handler and once by the EVALUATE handler.</p>
+<p><strong>Why it matters</strong>: Double-emission means the logic runs twice, potentially producing wrong results or side effects.</p>
+<p><strong>How it was fixed</strong>: The generator tracks which statements appear in branches (<code>statements_in_branches</code> set) and skips them in the top-level emission.</p>
+<h2 id="file-io-fixes">File I/O Fixes</h2>
+<h3 id="fix-sort-inputoutput-procedure">Fix: SORT INPUT/OUTPUT PROCEDURE</h3>
+<p><strong>What was broken</strong>: SORT with INPUT PROCEDURE / OUTPUT PROCEDURE was flagged as MANUAL REVIEW.</p>
+<p><strong>Why it matters</strong>: This is COBOL's way of preprocessing records before sorting and postprocessing after. The INPUT PROCEDURE uses RELEASE to feed records into the sort buffer; the OUTPUT PROCEDURE uses RETURN to retrieve sorted records.</p>
+<p><strong>How it was fixed</strong>: The generator now emits:
+1. Call the input procedure (which calls RELEASE to fill <code>_sort_buffer</code>)
+2. Sort the buffer by the specified keys
+3. Create an iterator from the sorted buffer
+4. Call the output procedure (which calls RETURN to retrieve records one at a time)</p>
+<h3 id="fix-read-key-is-rewrite-open-i-o">Fix: READ KEY IS + REWRITE + OPEN I-O</h3>
+<p><strong>What was broken</strong>: READ with KEY IS (indexed file lookup), REWRITE (update in place), and OPEN I-O (read-write mode) inside IF branches were all flagged as MANUAL REVIEW.</p>
+<p><strong>Why it matters</strong>: These are standard indexed file operations. Without them, any program that reads a record by key, modifies it, and writes it back gets flagged.</p>
+<p><strong>How it was fixed</strong>: Added file I/O verb detection to the branch handler (<code>_convert_single_statement</code> in parse_conditions.py) so these verbs are recognized even inside IF branches.</p>
+<h3 id="fix-at-end-not-at-end-patterns">Fix: AT END / NOT AT END Patterns</h3>
+<p><strong>What was broken</strong>: The AT END handler (executed when reaching end-of-file) wasn't being emitted.</p>
+<p><strong>Why it matters</strong>: Almost every COBOL file-reading loop uses AT END to detect when there's no more data:</p>
+<pre><code class="language-cobol">READ LOAN-FILE
+  AT END
+    SET END-OF-FILE TO TRUE
+  NOT AT END
+    PERFORM PROCESS-RECORD
+END-READ
+</code></pre>
+<h2 id="security-fixes">Security Fixes</h2>
+<h3 id="fix-jwt-token-hardening">Fix: JWT Token Hardening</h3>
+<p>Tokens now expire after 7 days (down from no expiry), include <code>iat</code> (issued-at) claims, and are validated against both signature and expiry on every request.</p>
+<h3 id="fix-docker-two-stage-build">Fix: Docker Two-Stage Build</h3>
+<p>Production Docker images compile all Python to <code>.so</code> (binary) via Cython. The source code is not present in the final image, preventing reverse engineering of the verification logic.</p>
+<h3 id="fix-input-validation">Fix: Input Validation</h3>
+<p>File uploads are limited to 10 MB. Shadow Diff uploads are chunked (8 MB per chunk) with a 50 GB total limit and disk space pre-checks.</p>
+<hr />
+<h1 id="part-6-the-audit-results">Part 6: The Audit Results</h1>
+<h2 id="test-suite-597-tests-zero-failures">Test Suite (597 Tests, Zero Failures)</h2>
+<table>
+<thead>
+<tr>
+<th>Test File</th>
+<th>Tests</th>
+<th>What It Covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_core_logic.py</code></td>
+<td>59</td>
+<td>API endpoints, auth, analysis pipeline</td>
+</tr>
+<tr>
+<td><code>test_generator_edge_cases.py</code></td>
+<td>54</td>
+<td>Generator edge cases across all constructs</td>
+</tr>
+<tr>
+<td><code>test_generator_fixes.py</code></td>
+<td>48</td>
+<td>Specific bug fix regressions</td>
+</tr>
+<tr>
+<td><code>test_shadow_diff.py</code></td>
+<td>40</td>
+<td>Shadow Diff comparison, streaming, COMP-3</td>
+</tr>
+<tr>
+<td><code>test_file_io.py</code></td>
+<td>26</td>
+<td>File I/O backends, manager, integration</td>
+</tr>
+<tr>
+<td><code>test_ebcdic.py</code></td>
+<td>26</td>
+<td>EBCDIC encoding/decoding, comparison</td>
+</tr>
+<tr>
+<td><code>test_layout_generator.py</code></td>
+<td>24</td>
+<td>Layout auto-generation from DATA DIVISION</td>
+</tr>
+<tr>
+<td><code>test_copybook.py</code></td>
+<td>22</td>
+<td>COPY expansion, REPLACING, REDEFINES</td>
+</tr>
+<tr>
+<td><code>test_abend.py</code></td>
+<td>20</td>
+<td>S0C7 emulation, zoned decimal</td>
+</tr>
+<tr>
+<td><code>test_dead_code.py</code></td>
+<td>20</td>
+<td>Paragraph reachability analysis</td>
+</tr>
+<tr>
+<td><code>test_dependency.py</code></td>
+<td>20</td>
+<td>Multi-program CALL detection, batch</td>
+</tr>
+<tr>
+<td><code>test_license.py</code></td>
+<td>20</td>
+<td>License validation, grace mode, features</td>
+</tr>
+<tr>
+<td><code>test_signing.py</code></td>
+<td>19</td>
+<td>RSA-PSS signing, chain verification</td>
+</tr>
+<tr>
+<td><code>test_integration.py</code></td>
+<td>18</td>
+<td>Full pipeline end-to-end</td>
+</tr>
+<tr>
+<td><code>test_cobol_types.py</code></td>
+<td>18</td>
+<td>CobolDecimal truncation, TRUNC modes</td>
+</tr>
+<tr>
+<td><code>test_parse_conditions.py</code></td>
+<td>16</td>
+<td>IF/EVALUATE condition conversion</td>
+</tr>
+<tr>
+<td><code>test_exec_sql.py</code></td>
+<td>13</td>
+<td>SQL/CICS parsing, taint classification</td>
+</tr>
+<tr>
+<td><code>test_cli.py</code></td>
+<td>12</td>
+<td>CLI interface, batch mode</td>
+</tr>
+<tr>
+<td><code>test_sort.py</code></td>
+<td>13</td>
+<td>SORT USING/GIVING, INPUT/OUTPUT PROC</td>
+</tr>
+<tr>
+<td><code>test_integration_stress.py</code></td>
+<td>9</td>
+<td>Stress tests for large programs</td>
+</tr>
+<tr>
+<td><code>test_endpoints_new.py</code></td>
+<td>5</td>
+<td>New API endpoint coverage</td>
+</tr>
+<tr>
+<td><code>test_negative_verification.py</code></td>
+<td>5</td>
+<td>Shadow Diff mismatch detection</td>
+</tr>
+<tr>
+<td><code>test_cli_verify.py</code></td>
+<td>4</td>
+<td>CLI verification mode</td>
+</tr>
+<tr>
+<td><code>test_security_fixes.py</code></td>
+<td>4</td>
+<td>Security hardening tests</td>
+</tr>
+<tr>
+<td><code>test_resilience_fixes.py</code></td>
+<td>2</td>
+<td>Error recovery tests</td>
+</tr>
+<tr>
+<td><code>semantic_corpus/run_corpus.py</code></td>
+<td>50</td>
+<td>Behavioral execution verification</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>597</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="semantic-regression-corpus-50-behavioral-tests">Semantic Regression Corpus (50 Behavioral Tests)</h2>
+<p>The semantic corpus is the highest-quality test suite. Each entry is a real COBOL program paired with expected output values. The runner:</p>
+<ol>
+<li>Parses the COBOL</li>
+<li>Generates Python</li>
+<li>Executes the Python with specified inputs</li>
+<li>Compares outputs to expected values with <strong>exact Decimal match</strong> (no epsilon)</li>
+</ol>
+<p>Example entry (<code>trunc_std_modulo</code>):</p>
+<pre><code class="language-cobol">IDENTIFICATION DIVISION.
+PROGRAM-ID. TRUNC-STD-MODULO.
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01  WS-BIG         PIC S9(5).
+01  WS-SMALL       PIC 9(3).
+PROCEDURE DIVISION.
+0000-MAIN.
+    MOVE WS-BIG TO WS-SMALL.
+    STOP RUN.
+</code></pre>
+<pre><code class="language-json">{
+  &quot;inputs&quot;: { &quot;WS-BIG&quot;: &quot;1234&quot; },
+  &quot;expected_outputs&quot;: { &quot;WS-SMALL&quot;: &quot;234&quot; },
+  &quot;trunc_mode&quot;: &quot;STD&quot;,
+  &quot;notes&quot;: &quot;PIC 9(3) max_int=1000. 1234 mod 1000 = 234.&quot;
+}
+</code></pre>
+<p>Categories: precision (12), rounding (5), sign (5), string (7), control_flow (11), size_error (5), decimal_point (2).</p>
+<h2 id="production-verification-rate-pvr">Production Verification Rate (PVR)</h2>
+<p>PVR measures what percentage of COBOL programs Aletheia can fully verify without human intervention:</p>
+<pre><code>PVR Progress (100 programs):
+┌──────────────────────────────────────────────────────────┐
+│ March 1:    ███████████████░░░░░░░░░░  75%  (40 progs)   │
+│ March 10:   ██████████████████░░░░░░░  88%               │
+│ March 14:   ████████████████████░░░░░  92%               │
+│ March 17:   █████████████████████░░░░  94%  (100 progs)  │
+│                                                           │
+│ Remaining:  6 programs with ALTER (intentional hard stop) │
+└──────────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>94 out of 100 programs</strong> verify cleanly. The remaining 6 contain the ALTER verb — a COBOL statement that dynamically modifies which paragraph a GO TO jumps to. This is fundamentally incompatible with static analysis, so Aletheia intentionally flags these for manual review. This is a design choice, not a limitation.</p>
+<h2 id="construct-support-matrix-current-state">Construct Support Matrix (Current State)</h2>
+<h3 id="fully-supported-emits-clean-python">Fully Supported (Emits Clean Python)</h3>
+<table>
+<thead>
+<tr>
+<th>Construct</th>
+<th>Example</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MOVE / COMPUTE / ADD / SUB / MUL / DIV</td>
+<td><code>COMPUTE A = B * C</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>IF / ELSE / END-IF (nested)</td>
+<td><code>IF A &gt; B ... END-IF</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>EVALUATE TRUE / EVALUATE var / WHEN / WHEN OTHER</td>
+<td><code>EVALUATE TRUE ...</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>EVALUATE ALSO</strong> (multi-subject)</td>
+<td><code>EVALUATE A ALSO B</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>PERFORM / PERFORM THRU / VARYING / TIMES</td>
+<td><code>PERFORM A THRU B</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>STRING DELIMITED BY SIZE</td>
+<td><code>STRING A B INTO C</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>STRING with POINTER + non-SIZE delimiters</strong></td>
+<td><code>STRING ... POINTER ...</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>UNSTRING DELIMITED BY</td>
+<td><code>UNSTRING A DELIMITED BY ' '</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>UNSTRING with OR / DELIMITER IN / COUNT IN</strong></td>
+<td>complex UNSTRING</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>INSPECT TALLYING / REPLACING / CONVERTING</strong></td>
+<td><code>INSPECT TALLYING ALL</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>DISPLAY / GO TO / STOP RUN / INITIALIZE</td>
+<td><code>DISPLAY WS-A</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>IS NUMERIC / IS ALPHABETIC</td>
+<td><code>IF A IS NUMERIC</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>COMP-3, COMP/COMP-4, COMP-5</td>
+<td>All binary storage types</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>88-level conditions (single + multi-value)</td>
+<td><code>88 IS-VIP VALUE 'Y'</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>EBCDIC-aware string ordering</td>
+<td>PIC X comparisons</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>COPY / REPLACING / REDEFINES</td>
+<td>Copybook preprocessor</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>EXEC SQL/CICS detection + taint analysis</td>
+<td><code>EXEC SQL SELECT...</code></td>
+<td>Detected, flagged</td>
+</tr>
+<tr>
+<td>CALL dependency tree resolution</td>
+<td><code>CALL 'SUB-PROG'</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>OCCURS fixed-count tables + subscripts</td>
+<td><code>OCCURS 10 TIMES</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>DECIMAL-POINT IS COMMA</td>
+<td>European decimal notation</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>File I/O: OPEN / READ / WRITE / CLOSE</td>
+<td>Sequential file access</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td>FILE STATUS variable updates</td>
+<td>Status "00" / "10" / "23"</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>SORT INPUT/OUTPUT PROCEDURE</strong></td>
+<td>RELEASE / RETURN pattern</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>READ KEY IS</strong> (indexed lookup)</td>
+<td><code>READ F KEY IS K</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>REWRITE</strong> (update in place)</td>
+<td><code>REWRITE REC</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>OPEN I-O</strong> (read-write mode)</td>
+<td><code>OPEN I-O FILE</code></td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>GO TO DEPENDING ON</strong></td>
+<td>Conditional jump table</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>MOVE CORRESPONDING</strong></td>
+<td>Group-level field matching</td>
+<td>Fully emitted</td>
+</tr>
+<tr>
+<td><strong>Reference modification</strong></td>
+<td><code>WS-FIELD(1:3)</code></td>
+<td>Fully emitted</td>
+</tr>
+</tbody>
+</table>
+<h3 id="manual-review-intentional-hard-stops">MANUAL REVIEW (Intentional Hard Stops)</h3>
+<table>
+<thead>
+<tr>
+<th>Construct</th>
+<th>Why</th>
+<th>Count in Corpus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ALTER</strong></td>
+<td>Dynamically modifies GO TO targets at runtime — static analysis impossible</td>
+<td>6 programs</td>
+</tr>
+<tr>
+<td>EXEC SQL host variable execution</td>
+<td>External system coupling — behavior unknown without database</td>
+<td>Flagged, not blocked</td>
+</tr>
+<tr>
+<td>GO TO inside PERFORM THRU</td>
+<td>Complex control flow interaction — conservative approach</td>
+<td>Rare</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="part-7-the-business">Part 7: The Business</h1>
+<h2 id="the-market">The Market</h2>
+<p>The COBOL modernization market is estimated at <strong>$3 trillion</strong> in total addressable market (TAM). This number comes from the sheer volume of COBOL code in production:</p>
+<ul>
+<li>220 billion lines running at banks, insurance companies, and government agencies</li>
+<li>Average migration cost: $5-15 per line of code</li>
+<li>Average COBOL programmer salary: $100,000+/year (and they're all retiring)</li>
+<li>Regulatory pressure: DORA (EU), Basel III, and SOX all push banks toward modern infrastructure</li>
+</ul>
+<p>This isn't a market that's going away. Every major bank will need to modernize eventually, and they can't afford to get it wrong.</p>
+<h2 id="the-competition">The Competition</h2>
+<p>Every competitor in this space does the same thing: they try to <strong>translate</strong> COBOL to a modern language using AI. The big players:</p>
+<ul>
+<li><strong>IBM watsonx Code Assistant for Z</strong>: IBM's own tool. Uses AI to suggest Java translations. But even IBM acknowledges that the translations need manual verification.</li>
+<li><strong>Micro Focus Visual COBOL</strong>: Runs COBOL on .NET/JVM. Not really migration — it's wrapping COBOL in modern infrastructure.</li>
+<li><strong>Modernization consultancies</strong> (Accenture, Cognizant, TCS): Throw hundreds of developers at the problem. Takes 5-10 years per bank. Costs hundreds of millions.</li>
+</ul>
+<p>The fundamental problem with all of these: they produce code that <strong>looks</strong> right but has no proof it <strong>behaves</strong> identically to the original.</p>
+<pre><code>┌──────────────────────────────────────────────────────┐
+│              TRANSLATES CODE                          │
+│   IBM watsonx                                         │
+│   Micro Focus                   Aletheia              │
+│   Consultancies                 VERIFIES BEHAVIOR     │
+│                                                       │
+│   (They guess it's right)       (We PROVE it's right) │
+└──────────────────────────────────────────────────────┘
+</code></pre>
+<p>Aletheia doesn't compete with translators. We complement them. Use whatever tool you want to produce the Python — then use Aletheia to <strong>prove it works</strong>.</p>
+<h2 id="pricing">Pricing</h2>
+<p>Per-program verification pricing. Each COBOL program analyzed costs a fixed fee. Volume discounts for batch processing (100+ programs). Annual license with:
+- Feature flags (Shadow Diff, batch analysis, etc.)
+- Daily analysis quotas
+- RSA-PSS signed license files (air-gap compatible)</p>
+<h2 id="the-monopoly-playbook">The Monopoly Playbook</h2>
+<p>Verification is a <strong>trust product</strong>. Once a bank verifies 1,000 programs through Aletheia:</p>
+<ol>
+<li><strong>The audit trail is locked in</strong>: 1,000 signed verification records in the Vault, with chain-of-custody hashes. You can't move this to another tool.</li>
+<li><strong>The compliance documentation references Aletheia</strong>: Regulators have seen the reports. Switching tools means re-explaining everything.</li>
+<li><strong>The team knows the workflow</strong>: Engineers are trained on the Engine, the Shadow Diff, the Vault.</li>
+<li><strong>Historical comparison baseline</strong>: Future program changes need to be re-verified against the same baseline.</li>
+</ol>
+<p>Every additional program verified increases the switching cost.</p>
+<h2 id="validation">Validation</h2>
+<ul>
+<li><strong>597 tests</strong>, zero failures</li>
+<li><strong>50 semantic regression entries</strong> with exact Decimal match</li>
+<li><strong>PVR 94%</strong> on 100-program corpus (only ALTER programs flagged)</li>
+<li><strong>YC Spring 2026 applicant</strong></li>
+<li>Real code, real precision, real mainframe emulation</li>
+</ul>
+<hr />
+<h1 id="part-8-glossary">Part 8: Glossary</h1>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ANTLR4</strong></td>
+<td>Parser generator. Takes a grammar file and generates a lexer + parser in Python/Java/etc. Aletheia uses the COBOL85 grammar.</td>
+</tr>
+<tr>
+<td><strong>BCD</strong></td>
+<td>Binary-Coded Decimal. Encoding where each decimal digit is stored in 4 bits (one nibble). Used by COMP-3.</td>
+</tr>
+<tr>
+<td><strong>COBOL</strong></td>
+<td>Common Business-Oriented Language. Created 1959. Still runs most banking systems.</td>
+</tr>
+<tr>
+<td><strong>COMP</strong></td>
+<td>Computational — COBOL storage type for binary integers. Also called COMP-4.</td>
+</tr>
+<tr>
+<td><strong>COMP-3</strong></td>
+<td>Packed decimal storage. Two digits per byte, sign in last nibble. Most common numeric storage on mainframes.</td>
+</tr>
+<tr>
+<td><strong>COMP-4</strong></td>
+<td>Same as COMP. Pure binary storage.</td>
+</tr>
+<tr>
+<td><strong>COMP-5</strong></td>
+<td>Native binary — like COMP but uses the full binary range regardless of PIC.</td>
+</tr>
+<tr>
+<td><strong>CobolDecimal</strong></td>
+<td>Aletheia's Python class that wraps <code>Decimal</code> with PIC-based truncation. The precision engine.</td>
+</tr>
+<tr>
+<td><strong>Copybook</strong></td>
+<td>Reusable COBOL code fragment included via COPY statement. Like a header file in C.</td>
+</tr>
+<tr>
+<td><strong>CycloneDX</strong></td>
+<td>SBOM (Software Bill of Materials) standard. Aletheia generates CycloneDX 1.4 format.</td>
+</tr>
+<tr>
+<td><strong>DD</strong></td>
+<td>Data Definition — JCL statement that maps a logical file name to a physical dataset.</td>
+</tr>
+<tr>
+<td><strong>DISPLAY</strong></td>
+<td>Default COBOL storage type. One byte per digit, human-readable.</td>
+</tr>
+<tr>
+<td><strong>EBCDIC</strong></td>
+<td>Extended Binary Coded Decimal Interchange Code. IBM's character encoding. Different collating sequence from ASCII.</td>
+</tr>
+<tr>
+<td><strong>FD</strong></td>
+<td>File Description — COBOL's way of declaring the structure of a data file.</td>
+</tr>
+<tr>
+<td><strong>JCL</strong></td>
+<td>Job Control Language. IBM mainframe scripting language that orchestrates batch jobs.</td>
+</tr>
+<tr>
+<td><strong>LINKAGE SECTION</strong></td>
+<td>COBOL's way of declaring parameters received from a calling program.</td>
+</tr>
+<tr>
+<td><strong>MANUAL REVIEW</strong></td>
+<td>Aletheia's signal that a construct couldn't be safely converted to Python. Never generates wrong code — flags for human review instead.</td>
+</tr>
+<tr>
+<td><strong>Nibble</strong></td>
+<td>Half a byte (4 bits). Can hold values 0-15. COMP-3 uses one nibble per digit.</td>
+</tr>
+<tr>
+<td><strong>Overpunch</strong></td>
+<td>EBCDIC encoding where the sign of a number is embedded in the last byte's zone bits. <code>D5</code> = negative 5, <code>F5</code> = positive 5.</td>
+</tr>
+<tr>
+<td><strong>PIC</strong></td>
+<td>PICTURE clause. COBOL's way of declaring a variable's type, size, and precision. <code>PIC S9(5)V99</code> = signed, 5 integer digits, 2 decimal places.</td>
+</tr>
+<tr>
+<td><strong>PVR</strong></td>
+<td>Production Verification Rate. Percentage of COBOL programs that verify cleanly without human intervention. Currently 94%.</td>
+</tr>
+<tr>
+<td><strong>QSAM</strong></td>
+<td>Queued Sequential Access Method. IBM mainframe file access method for sequential (flat) files.</td>
+</tr>
+<tr>
+<td><strong>REDEFINES</strong></td>
+<td>COBOL clause that makes two variables share the same memory bytes. Like a C <code>union</code>.</td>
+</tr>
+<tr>
+<td><strong>RSA-PSS</strong></td>
+<td>RSA Probabilistic Signature Scheme. Cryptographic signature algorithm used for report signing.</td>
+</tr>
+<tr>
+<td><strong>S0C7</strong></td>
+<td>System Completion Code 0C7. IBM mainframe abend (abnormal end / crash) caused by non-numeric data in a numeric field.</td>
+</tr>
+<tr>
+<td><strong>SBOM</strong></td>
+<td>Software Bill of Materials. Inventory of all dependencies in a program.</td>
+</tr>
+<tr>
+<td><strong>Shadow Diff</strong></td>
+<td>Aletheia's comparison engine. Feeds same inputs to generated Python and compares against real mainframe output.</td>
+</tr>
+<tr>
+<td><strong>TRUNC</strong></td>
+<td>Truncation mode. IBM compiler flag: STD (mod PIC), BIN (full binary for COMP), OPT (no truncation).</td>
+</tr>
+<tr>
+<td><strong>Vault</strong></td>
+<td>Aletheia's append-only audit trail. SQLite database with chain-of-custody hashing and RSA-PSS signatures.</td>
+</tr>
+<tr>
+<td><strong>VSAM</strong></td>
+<td>Virtual Storage Access Method. IBM mainframe file system for indexed (keyed) and relative record files.</td>
+</tr>
+<tr>
+<td><strong>Zoned Decimal</strong></td>
+<td>Same as DISPLAY format. One byte per digit with the sign in the last byte's zone bits.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>End of Document</strong></p>
+<p><em>Aletheia: Behavioral Verification Engine</em>
+<em>597 tests. 94% PVR. Zero tolerance for drift.</em></p>
+</body>
+</html>

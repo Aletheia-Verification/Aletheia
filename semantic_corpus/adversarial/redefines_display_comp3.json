@@ -1,0 +1,9 @@
+{
+  "description": "REDEFINES across USAGE types: PIC X(3) base with COMP-3 overlay. Only base field accessed.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "ABC"
+  },
+  "notes": "IBM: REDEFINES lets COMP-3 overlay reinterpret DISPLAY bytes. Aletheia: REDEFINES overlay creates byte-backed region for base (CobolFieldProxy), but MOVE overwrites proxy with plain string. Overlay field name is mangled (ws_comp3redefinesws_disp) so direct access via WS-COMP3 causes NameError. GAP: REDEFINES overlay name resolution and cross-USAGE byte reinterpretation."
+}

@@ -1,0 +1,14 @@
+{
+  "description": "UNSTRING with TALLYING IN — counts fields filled",
+  "category": "adversarial",
+  "inputs": {
+    "WS-SRC": "A,B,C"
+  },
+  "expected_outputs": {
+    "WS-P1": "A",
+    "WS-P2": "B",
+    "WS-P3": "C",
+    "WS-TALLY": "3"
+  },
+  "notes": "Engine emits ws_tally.store(Decimal(str(min(len(_unstring_parts), 3)))). 'A,B,C' splits into 3 parts, so TALLYING = 3. IBM behavior identical."
+}

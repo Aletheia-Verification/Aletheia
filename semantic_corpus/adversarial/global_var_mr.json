@@ -1,0 +1,10 @@
+{
+  "description": "GLOBAL variable: single-program MOVE to GLOBAL field, verify data integrity",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-GLOBAL": "TESTING   ",
+    "WS-OUT": "TESTING   "
+  },
+  "notes": "IBM: GLOBAL makes variable visible to nested programs. In single-program context, behaves like regular variable. Aletheia: detects global_var flag in parser but no special generator treatment. MOVE works normally. GLOBAL scope sharing across nested programs not implemented. GAP: GLOBAL cross-program visibility not modeled."
+}

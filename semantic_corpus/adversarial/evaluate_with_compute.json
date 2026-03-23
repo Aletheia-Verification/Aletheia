@@ -1,0 +1,11 @@
+{
+  "description": "COMPUTE inside EVALUATE WHEN branch — WS-X=1 triggers COMPUTE WS-Y = WS-X * 100",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "1"
+  },
+  "expected_outputs": {
+    "WS-Y": "100"
+  },
+  "notes": "EVALUATE TRUE: WHEN WS-X=1 fires COMPUTE WS-Y = WS-X * 100 = 1 * 100 = 100. Tests arithmetic (COMPUTE) nested inside EVALUATE branch. Engine emits the compute expression inside the if-elif chain."
+}

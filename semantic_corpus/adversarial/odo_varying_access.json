@@ -1,0 +1,10 @@
+{
+  "description": "OCCURS DEPENDING ON: set count=3, MOVE to element 2, read back via subscript",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "3",
+    "WS-OUT": "HELLO"
+  },
+  "notes": "IBM: ODO allocates variable-length storage, subscript access within range works normally. Aletheia: allocates max-size array (10 elements), subscript access works. ODO range not enforced at runtime but emits compiler warning."
+}

@@ -1,0 +1,12 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GRP-MOVE-COMP3.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-GROUP.
+           05  WS-ALPHA    PIC X(3)  VALUE 'ABC'.
+           05  WS-NUM      PIC 9(4)  COMP-3  VALUE 1234.
+       01  WS-TARGET       PIC X(6).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-GROUP TO WS-TARGET.
+           STOP RUN.

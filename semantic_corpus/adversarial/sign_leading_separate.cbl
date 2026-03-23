@@ -1,0 +1,12 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. SIGN-LEAD-SEP.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-FIELD         PIC S9(5) SIGN LEADING SEPARATE.
+       01  WS-OUT           PIC X(6).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE -12345 TO WS-FIELD.
+           MOVE WS-FIELD TO WS-OUT.
+           DISPLAY WS-OUT.
+           STOP RUN.

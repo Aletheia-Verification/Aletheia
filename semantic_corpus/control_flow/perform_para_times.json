@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM paragraph N TIMES calls paragraph exactly N times",
+  "category": "control_flow",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNTER": "5"
+  },
+  "notes": "PERFORM 1000-ADD-ONE 5 TIMES. Starts at 0, each call adds 1, result is 5."
+}

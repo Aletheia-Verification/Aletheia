@@ -1,0 +1,9 @@
+{
+  "description": "ADD inside PERFORM VARYING loop — accumulates 1+2+3+4+5 into WS-SUM",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-SUM": "15"
+  },
+  "notes": "PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 5 with ADD WS-I TO WS-SUM in body. Loop runs for I=1,2,3,4,5 then exits when I=6. Sum = 1+2+3+4+5 = 15. Tests arithmetic inside inline PERFORM VARYING."
+}

@@ -1,0 +1,9 @@
+{
+  "description": "88-level with multiple values: VALUE 'SAT' 'SUN' should be true when base is 'SUN'",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "WEEKEND"
+  },
+  "notes": "WS-DAY='SUN' matches the WEEKEND 88-level (VALUE 'SAT' 'SUN'). 88-level with multiple values is flagged for manual review in the support matrix. This is extremely common in banking COBOL for status codes, day-of-week checks, account type flags."
+}

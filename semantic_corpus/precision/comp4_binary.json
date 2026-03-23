@@ -1,0 +1,10 @@
+{
+  "description": "COMP (COMP-4) binary variable stores full range, TRUNC(BIN) skips modulo",
+  "category": "precision",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "10000"
+  },
+  "trunc_mode": "BIN",
+  "notes": "PIC S9(4) COMP under TRUNC(BIN) allows 9999+1=10000 without modulo. The is_comp flag must be True for COMP variables, not just COMP-3."
+}

@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TRUNC-BIN-COMP.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-BIG         PIC S9(5).
+       01  WS-SMALL       PIC S9(3)V99 COMP-3.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-BIG TO WS-SMALL.
+           STOP RUN.

@@ -1,0 +1,256 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. LOAN-AMORT-ENGINE.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT LOAN-FILE ASSIGN TO 'LOAN.DAT'
+               FILE STATUS IS WS-LOAN-STATUS.
+           SELECT SCHED-FILE ASSIGN TO 'SCHEDULE.DAT'
+               FILE STATUS IS WS-SCHED-STATUS.
+       DATA DIVISION.
+       FILE SECTION.
+       FD LOAN-FILE.
+       01 LOAN-RECORD.
+           05 LN-ACCT-NUM         PIC X(12).
+           05 LN-PRINCIPAL        PIC 9(9)V99.
+           05 LN-ANNUAL-RATE      PIC 9(2)V9(6).
+           05 LN-TERM-MONTHS      PIC 9(3).
+           05 LN-LOAN-TYPE        PIC X(1).
+           05 LN-BALLOON-FLAG     PIC X(1).
+           05 LN-BALLOON-MONTH    PIC 9(3).
+           05 LN-EXTRA-PMT        PIC 9(7)V99.
+       FD SCHED-FILE.
+       01 SCHED-RECORD.
+           05 SC-ACCT-NUM         PIC X(12).
+           05 SC-MONTH-NUM        PIC 9(3).
+           05 SC-PAYMENT          PIC 9(7)V99.
+           05 SC-PRINCIPAL-PMT    PIC 9(7)V99.
+           05 SC-INTEREST-PMT     PIC 9(7)V99.
+           05 SC-EXTRA-PMT        PIC 9(7)V99.
+           05 SC-BALANCE          PIC 9(9)V99.
+           05 SC-CUM-INTEREST     PIC 9(9)V99.
+           05 SC-STATUS           PIC X(8).
+       WORKING-STORAGE SECTION.
+       01 WS-LOAN-STATUS          PIC XX.
+       01 WS-SCHED-STATUS         PIC XX.
+       01 WS-EOF-FLAG             PIC X VALUE 'N'.
+           88 WS-EOF              VALUE 'Y'.
+       01 WS-LOAN-TYPE-FLAG       PIC X.
+           88 WS-FIXED            VALUE 'F'.
+           88 WS-VARIABLE         VALUE 'V'.
+       01 WS-BALLOON-TYPE         PIC X.
+           88 WS-HAS-BALLOON      VALUE 'Y'.
+           88 WS-NO-BALLOON       VALUE 'N'.
+       01 WS-CALC-FIELDS.
+           05 WS-MONTHLY-RATE     PIC S9(1)V9(8) COMP-3.
+           05 WS-MONTHLY-PMT      PIC S9(7)V99 COMP-3.
+           05 WS-BALANCE          PIC S9(9)V99 COMP-3.
+           05 WS-INTEREST-PMT     PIC S9(7)V99 COMP-3.
+           05 WS-PRINCIPAL-PMT    PIC S9(7)V99 COMP-3.
+           05 WS-CUM-INTEREST     PIC S9(9)V99 COMP-3.
+           05 WS-CUM-PRINCIPAL    PIC S9(9)V99 COMP-3.
+           05 WS-EXTRA-PMT        PIC S9(7)V99 COMP-3.
+           05 WS-TOTAL-PMT        PIC S9(7)V99 COMP-3.
+       01 WS-ITERATION.
+           05 WS-PMT-ESTIMATE     PIC S9(7)V99 COMP-3.
+           05 WS-PMT-LOW          PIC S9(7)V99 COMP-3.
+           05 WS-PMT-HIGH         PIC S9(7)V99 COMP-3.
+           05 WS-PMT-MID          PIC S9(7)V99 COMP-3.
+           05 WS-TRIAL-BAL        PIC S9(9)V99 COMP-3.
+           05 WS-TRIAL-INT        PIC S9(7)V99 COMP-3.
+           05 WS-TRIAL-PRIN       PIC S9(7)V99 COMP-3.
+           05 WS-CONVERGED-FLAG   PIC X VALUE 'N'.
+               88 WS-CONVERGED    VALUE 'Y'.
+           05 WS-ITER-COUNT       PIC S9(3) COMP-3.
+           05 WS-MAX-ITER         PIC S9(3) VALUE 100.
+           05 WS-TOLERANCE        PIC S9(1)V99 VALUE 0.01.
+           05 WS-DIFF             PIC S9(9)V99 COMP-3.
+       01 WS-MONTH-IDX            PIC 9(3).
+       01 WS-LOAN-COUNT           PIC S9(5) COMP-3.
+       01 WS-EARLY-PAYOFF         PIC X VALUE 'N'.
+           88 WS-PAID-OFF         VALUE 'Y'.
+       01 WS-SUMMARY.
+           05 WS-TOTAL-LOANS      PIC S9(5) COMP-3.
+           05 WS-TOTAL-INTEREST   PIC S9(11)V99 COMP-3.
+           05 WS-TOTAL-PRINCIPAL  PIC S9(11)V99 COMP-3.
+           05 WS-AVG-RATE         PIC S9(3)V9(6) COMP-3.
+           05 WS-RATE-SUM         PIC S9(5)V9(6) COMP-3.
+       01 WS-BALLOON-FIELDS.
+           05 WS-BALLOON-AMT      PIC S9(9)V99 COMP-3.
+           05 WS-MONTHS-BEFORE    PIC S9(3) COMP-3.
+       01 WS-PAYOFF-FIELDS.
+           05 WS-PAYOFF-MONTH     PIC 9(3).
+           05 WS-PAYOFF-SAVINGS   PIC S9(9)V99 COMP-3.
+           05 WS-ORIG-TOTAL-INT   PIC S9(9)V99 COMP-3.
+       PROCEDURE DIVISION.
+       0000-MAIN-PROCESS.
+           PERFORM 0100-INITIALIZE
+           PERFORM 0200-OPEN-FILES
+           PERFORM 0300-READ-LOAN UNTIL WS-EOF
+           PERFORM 0400-PRINT-SUMMARY
+           PERFORM 0500-CLOSE-FILES
+           STOP RUN.
+       0100-INITIALIZE.
+           INITIALIZE WS-CALC-FIELDS
+           INITIALIZE WS-ITERATION
+           INITIALIZE WS-SUMMARY
+           MOVE 0 TO WS-LOAN-COUNT
+           MOVE 0 TO WS-TOTAL-LOANS
+           MOVE 0 TO WS-TOTAL-INTEREST
+           MOVE 0 TO WS-TOTAL-PRINCIPAL
+           MOVE 0 TO WS-RATE-SUM.
+       0200-OPEN-FILES.
+           OPEN INPUT LOAN-FILE
+           OPEN OUTPUT SCHED-FILE.
+       0300-READ-LOAN.
+           READ LOAN-FILE
+               AT END SET WS-EOF TO TRUE
+               NOT AT END PERFORM 1000-PROCESS-LOAN
+                              THRU 4000-FINISH-LOAN.
+       1000-PROCESS-LOAN.
+           MOVE LN-LOAN-TYPE TO WS-LOAN-TYPE-FLAG
+           MOVE LN-BALLOON-FLAG TO WS-BALLOON-TYPE
+           MOVE LN-PRINCIPAL TO WS-BALANCE
+           MOVE LN-EXTRA-PMT TO WS-EXTRA-PMT
+           MOVE 0 TO WS-CUM-INTEREST
+           MOVE 0 TO WS-CUM-PRINCIPAL
+           MOVE 'N' TO WS-EARLY-PAYOFF
+           COMPUTE WS-MONTHLY-RATE =
+               LN-ANNUAL-RATE / 12
+           PERFORM 2000-CALC-PAYMENT.
+       2000-CALC-PAYMENT.
+           MOVE 'N' TO WS-CONVERGED-FLAG
+           MOVE 0 TO WS-ITER-COUNT
+           COMPUTE WS-PMT-LOW = WS-BALANCE / LN-TERM-MONTHS
+           COMPUTE WS-PMT-HIGH = WS-BALANCE / 2
+           PERFORM 2100-BISECT-ITERATE
+               UNTIL WS-CONVERGED
+               OR WS-ITER-COUNT > WS-MAX-ITER
+           IF WS-CONVERGED
+               MOVE WS-PMT-MID TO WS-MONTHLY-PMT
+           ELSE
+               COMPUTE WS-MONTHLY-PMT =
+                   WS-BALANCE / LN-TERM-MONTHS
+           END-IF.
+       2100-BISECT-ITERATE.
+           ADD 1 TO WS-ITER-COUNT
+           COMPUTE WS-PMT-MID =
+               (WS-PMT-LOW + WS-PMT-HIGH) / 2
+           MOVE LN-PRINCIPAL TO WS-TRIAL-BAL
+           PERFORM VARYING WS-MONTH-IDX FROM 1 BY 1
+               UNTIL WS-MONTH-IDX > LN-TERM-MONTHS
+               COMPUTE WS-TRIAL-INT =
+                   WS-TRIAL-BAL * WS-MONTHLY-RATE
+               COMPUTE WS-TRIAL-PRIN =
+                   WS-PMT-MID - WS-TRIAL-INT
+               SUBTRACT WS-TRIAL-PRIN FROM WS-TRIAL-BAL
+           END-PERFORM
+           COMPUTE WS-DIFF = WS-TRIAL-BAL
+           IF WS-DIFF < 0
+               MULTIPLY -1 BY WS-DIFF
+           END-IF
+           IF WS-DIFF < WS-TOLERANCE
+               MOVE 'Y' TO WS-CONVERGED-FLAG
+           ELSE
+               IF WS-TRIAL-BAL > 0
+                   MOVE WS-PMT-MID TO WS-PMT-LOW
+               ELSE
+                   MOVE WS-PMT-MID TO WS-PMT-HIGH
+               END-IF
+           END-IF.
+       3000-GENERATE-SCHEDULE.
+           MOVE LN-PRINCIPAL TO WS-BALANCE
+           PERFORM VARYING WS-MONTH-IDX FROM 1 BY 1
+               UNTIL WS-MONTH-IDX > LN-TERM-MONTHS
+               OR WS-PAID-OFF
+               PERFORM 3100-CALC-MONTH-PMT
+               PERFORM 3200-CHECK-BALLOON
+               PERFORM 3300-CHECK-EARLY-PAYOFF
+               PERFORM 3400-WRITE-SCHED-REC
+           END-PERFORM.
+       3100-CALC-MONTH-PMT.
+           COMPUTE WS-INTEREST-PMT =
+               WS-BALANCE * WS-MONTHLY-RATE
+           COMPUTE WS-PRINCIPAL-PMT =
+               WS-MONTHLY-PMT - WS-INTEREST-PMT
+           IF WS-PRINCIPAL-PMT > WS-BALANCE
+               MOVE WS-BALANCE TO WS-PRINCIPAL-PMT
+               COMPUTE WS-MONTHLY-PMT =
+                   WS-PRINCIPAL-PMT + WS-INTEREST-PMT
+           END-IF
+           COMPUTE WS-TOTAL-PMT =
+               WS-MONTHLY-PMT + WS-EXTRA-PMT
+           ADD WS-INTEREST-PMT TO WS-CUM-INTEREST
+           ADD WS-PRINCIPAL-PMT TO WS-CUM-PRINCIPAL
+           SUBTRACT WS-PRINCIPAL-PMT FROM WS-BALANCE
+           SUBTRACT WS-EXTRA-PMT FROM WS-BALANCE
+           IF WS-BALANCE < 0
+               ADD WS-BALANCE TO WS-EXTRA-PMT
+               MOVE 0 TO WS-BALANCE
+           END-IF.
+       3200-CHECK-BALLOON.
+           IF WS-HAS-BALLOON
+               IF WS-MONTH-IDX = LN-BALLOON-MONTH
+                   MOVE WS-BALANCE TO WS-BALLOON-AMT
+                   MOVE WS-BALANCE TO WS-PRINCIPAL-PMT
+                   MOVE 0 TO WS-BALANCE
+                   MOVE 'Y' TO WS-EARLY-PAYOFF
+               END-IF
+           END-IF.
+       3300-CHECK-EARLY-PAYOFF.
+           IF WS-BALANCE = 0
+               MOVE 'Y' TO WS-EARLY-PAYOFF
+               MOVE WS-MONTH-IDX TO WS-PAYOFF-MONTH
+           END-IF.
+       3400-WRITE-SCHED-REC.
+           MOVE LN-ACCT-NUM TO SC-ACCT-NUM
+           MOVE WS-MONTH-IDX TO SC-MONTH-NUM
+           MOVE WS-MONTHLY-PMT TO SC-PAYMENT
+           MOVE WS-PRINCIPAL-PMT TO SC-PRINCIPAL-PMT
+           MOVE WS-INTEREST-PMT TO SC-INTEREST-PMT
+           MOVE WS-EXTRA-PMT TO SC-EXTRA-PMT
+           MOVE WS-BALANCE TO SC-BALANCE
+           MOVE WS-CUM-INTEREST TO SC-CUM-INTEREST
+           IF WS-PAID-OFF
+               MOVE 'PAID-OFF' TO SC-STATUS
+           ELSE
+               MOVE 'ACTIVE  ' TO SC-STATUS
+           END-IF
+           WRITE SCHED-RECORD.
+       4000-FINISH-LOAN.
+           ADD 1 TO WS-LOAN-COUNT
+           ADD 1 TO WS-TOTAL-LOANS
+           ADD WS-CUM-INTEREST TO WS-TOTAL-INTEREST
+           ADD WS-CUM-PRINCIPAL TO WS-TOTAL-PRINCIPAL
+           ADD LN-ANNUAL-RATE TO WS-RATE-SUM
+           IF WS-PAID-OFF
+               DISPLAY 'LOAN ' LN-ACCT-NUM
+                   ' PAID OFF MONTH ' WS-PAYOFF-MONTH
+           ELSE
+               DISPLAY 'LOAN ' LN-ACCT-NUM
+                   ' AMORTIZED ' LN-TERM-MONTHS ' MONTHS'
+           END-IF
+           DISPLAY '  TOTAL INTEREST: ' WS-CUM-INTEREST
+           DISPLAY '  FINAL BALANCE:  ' WS-BALANCE.
+       0400-PRINT-SUMMARY.
+           IF WS-TOTAL-LOANS > 0
+               DIVIDE WS-RATE-SUM BY WS-TOTAL-LOANS
+                   GIVING WS-AVG-RATE
+           END-IF
+           COMPUTE WS-ORIG-TOTAL-INT =
+               WS-TOTAL-INTEREST
+           IF WS-TOTAL-PRINCIPAL > 0
+               COMPUTE WS-PAYOFF-SAVINGS =
+                   WS-ORIG-TOTAL-INT * 0.15
+           ELSE
+               MOVE 0 TO WS-PAYOFF-SAVINGS
+           END-IF
+           DISPLAY 'AMORTIZATION BATCH COMPLETE'
+           DISPLAY 'LOANS PROCESSED:    ' WS-TOTAL-LOANS
+           DISPLAY 'TOTAL INTEREST:     ' WS-TOTAL-INTEREST
+           DISPLAY 'TOTAL PRINCIPAL:    ' WS-TOTAL-PRINCIPAL
+           DISPLAY 'AVERAGE RATE:       ' WS-AVG-RATE
+           DISPLAY 'POTENTIAL SAVINGS:  ' WS-PAYOFF-SAVINGS.
+       0500-CLOSE-FILES.
+           CLOSE LOAN-FILE
+           CLOSE SCHED-FILE.

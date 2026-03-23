@@ -1,0 +1,1 @@
+{"layout_name": "DEMO_LOAN_INTEREST", "total_records": 100, "matches": 100, "mismatches": 0, "s0c7_abends": 0, "match_rate": "100/100 (100.0%)", "verdict": "ZERO DRIFT CONFIRMED", "input_file_hash": "0c3896f9ee5ac284", "output_file_hash": "9c1579a721145504", "timestamp": "2026-03-06T12:00:00Z", "diagnosed_mismatches": [], "mismatch_log": [], "s0c7_details": []}

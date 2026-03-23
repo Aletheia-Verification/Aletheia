@@ -1,0 +1,9 @@
+{
+  "description": "PERFORM 0 TIMES: paragraph body should never execute.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-COUNT": "0"
+  },
+  "notes": "PERFORM PARA-A 0 TIMES generates range(0) which iterates zero times. WS-COUNT stays at 0. Matches IBM COBOL behavior where 0 TIMES means no execution."
+}

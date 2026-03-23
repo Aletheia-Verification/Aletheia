@@ -1,0 +1,9 @@
+{
+  "description": "COMP-3 zero with BLANK WHEN ZERO target: PIC 9(5) parsed as pic_integers=1 due to BWZ clause interference",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "0"
+  },
+  "notes": "IBM: BLANK WHEN ZERO displays zero as spaces, but .value stays 0. Aletheia: PIC 9(5) BLANK WHEN ZERO parses as pic_integers=1 (BWZ clause disrupts PIC digit extraction). Corpus runner reads .value not .to_display(), so result is 0 either way. GAP: PIC digit count wrong when BLANK WHEN ZERO follows PIC clause."
+}

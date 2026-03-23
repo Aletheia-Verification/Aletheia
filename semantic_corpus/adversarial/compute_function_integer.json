@@ -1,0 +1,11 @@
+{
+  "description": "FUNCTION INTEGER \u00e2\u20ac\u201d truncates toward negative infinity (floor)",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 3.7
+  },
+  "expected_outputs": {
+    "WS-RESULT": "3"
+  },
+  "notes": "IBM FUNCTION INTEGER returns greatest integer <= argument. For positive 3.7 that is 3. Potential gap: negative values floor differently than truncation."
+}

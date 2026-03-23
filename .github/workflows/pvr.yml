@@ -1,0 +1,58 @@
+name: PVR Measurement
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to comment on (leave empty for no comment)"
+        required: false
+        default: ""
+
+jobs:
+  pvr:
+    runs-on: ubuntu-latest
+    env:
+      USE_IN_MEMORY_DB: "1"
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run PVR experiment
+        run: python viability_experiment.py 2>&1 | tee pvr_output.txt
+      - name: Extract PVR score
+        id: pvr
+        run: |
+          PVR_LINE=$(grep "PVR (Parse-Verify Rate)" pvr_output.txt || echo "PVR not found")
+          echo "pvr_line=$PVR_LINE" >> "$GITHUB_OUTPUT"
+          echo "## PVR Result" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -40 pvr_output.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment on PR
+        if: inputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ inputs.pr_number }} --body "## PVR Measurement
+
+          ${{ steps.pvr.outputs.pvr_line }}
+
+          <details>
+          <summary>Full output</summary>
+
+          \`\`\`
+          $(tail -40 pvr_output.txt)
+          \`\`\`
+          </details>
+
+          *Run by GitHub Actions — [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*"
+      - name: Upload full report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pvr-report
+          path: pvr_output.txt

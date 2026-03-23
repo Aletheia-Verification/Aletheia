@@ -1,0 +1,9 @@
+{
+  "description": "OCCURS with variable subscript — WS-AMOUNT(WS-IDX) resolves at runtime",
+  "category": "precision",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "500"
+  },
+  "notes": "WS-IDX=3 so WS-AMOUNT(WS-IDX) = WS-AMOUNT(3) = 400. 400 + WS-AMOUNT(1) = 400 + 100 = 500."
+}

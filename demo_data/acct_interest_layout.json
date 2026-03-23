@@ -1,0 +1,170 @@
+{
+  "name": "ACCT-INTEREST",
+  "fields": [
+    {
+      "name": "ACCOUNT-TYPE",
+      "start": 0,
+      "length": 1,
+      "type": "string"
+    },
+    {
+      "name": "BALANCE",
+      "start": 1,
+      "length": 12,
+      "type": "decimal",
+      "decimals": 2
+    },
+    {
+      "name": "MONTHS",
+      "start": 13,
+      "length": 2,
+      "type": "integer"
+    },
+    {
+      "name": "DAYS-INACTIVE",
+      "start": 15,
+      "length": 3,
+      "type": "integer"
+    }
+  ],
+  "record_length": null,
+  "input_mapping": {
+    "ACCOUNT-TYPE": "ws_account_type",
+    "BALANCE": "ws_balance",
+    "MONTHS": "ws_months",
+    "DAYS-INACTIVE": "ws_days_inactive"
+  },
+  "output_fields": [
+    "ws_annual_rate",
+    "ws_monthly_rate",
+    "ws_interest",
+    "ws_new_balance",
+    "ws_month_ctr",
+    "ws_compound_bal",
+    "ws_total_interest",
+    "ws_min_balance",
+    "ws_fee",
+    "ws_net_interest",
+    "ws_tier",
+    "ws_bonus_rate",
+    "ws_penalty",
+    "ws_result_code"
+  ],
+  "constants": {},
+  "output_layout": {
+    "fields": [
+      {
+        "name": "ANNUAL-RATE",
+        "start": 0,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 6
+      },
+      {
+        "name": "MONTHLY-RATE",
+        "start": 40,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 8
+      },
+      {
+        "name": "INTEREST",
+        "start": 80,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "NEW-BALANCE",
+        "start": 120,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "MONTH-CTR",
+        "start": 160,
+        "length": 40,
+        "type": "integer"
+      },
+      {
+        "name": "COMPOUND-BAL",
+        "start": 200,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "TOTAL-INTEREST",
+        "start": 240,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "MIN-BALANCE",
+        "start": 280,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "FEE",
+        "start": 320,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "NET-INTEREST",
+        "start": 360,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "TIER",
+        "start": 400,
+        "length": 40,
+        "type": "integer"
+      },
+      {
+        "name": "BONUS-RATE",
+        "start": 440,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 6
+      },
+      {
+        "name": "PENALTY",
+        "start": 480,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "RESULT-CODE",
+        "start": 520,
+        "length": 40,
+        "type": "integer"
+      }
+    ],
+    "record_length": null,
+    "field_mapping": {
+      "ANNUAL-RATE": "ws_annual_rate",
+      "MONTHLY-RATE": "ws_monthly_rate",
+      "INTEREST": "ws_interest",
+      "NEW-BALANCE": "ws_new_balance",
+      "MONTH-CTR": "ws_month_ctr",
+      "COMPOUND-BAL": "ws_compound_bal",
+      "TOTAL-INTEREST": "ws_total_interest",
+      "MIN-BALANCE": "ws_min_balance",
+      "FEE": "ws_fee",
+      "NET-INTEREST": "ws_net_interest",
+      "TIER": "ws_tier",
+      "BONUS-RATE": "ws_bonus_rate",
+      "PENALTY": "ws_penalty",
+      "RESULT-CODE": "ws_result_code"
+    }
+  }
+}

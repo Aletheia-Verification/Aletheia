@@ -1,0 +1,18 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. OCCURS-VAR-SUB.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-TABLE.
+           05  WS-AMOUNT PIC S9(5) OCCURS 4.
+       01  WS-IDX    PIC 9(1).
+       01  WS-RESULT PIC S9(7).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 100 TO WS-AMOUNT(1).
+           MOVE 200 TO WS-AMOUNT(2).
+           MOVE 400 TO WS-AMOUNT(3).
+           MOVE 800 TO WS-AMOUNT(4).
+           MOVE 3 TO WS-IDX.
+           COMPUTE WS-RESULT =
+               WS-AMOUNT(WS-IDX) + WS-AMOUNT(1).
+           STOP RUN.

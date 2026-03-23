@@ -1,0 +1,13 @@
+{
+  "description": "UNSTRING with OR — splits on comma or semicolon",
+  "category": "adversarial",
+  "inputs": {
+    "WS-SRC": "A,B;C"
+  },
+  "expected_outputs": {
+    "WS-P1": "A",
+    "WS-P2": "B",
+    "WS-P3": "C"
+  },
+  "notes": "Engine emits re.split(',|;', str(ws_src)). Splits 'A,B;C' into ['A', 'B', 'C']. IBM behavior identical."
+}

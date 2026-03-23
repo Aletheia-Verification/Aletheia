@@ -1,0 +1,13 @@
+{
+  "description": "DIVIDE with GIVING and REMAINDER \u00e2\u20ac\u201d positive integers",
+  "category": "adversarial",
+  "inputs": {
+    "WS-DIVIDEND": 17,
+    "WS-DIVISOR": 5
+  },
+  "expected_outputs": {
+    "WS-QUOTIENT": "3",
+    "WS-REMAINDER": "2"
+  },
+  "notes": "IBM truncates quotient toward zero. REMAINDER = DIVIDEND - (QUOTIENT * DIVISOR). Should match exactly."
+}

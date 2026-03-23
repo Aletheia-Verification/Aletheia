@@ -1,0 +1,11 @@
+{
+  "description": "COMP-3 sign nibble handling: positive (C), negative (D), unsigned (F) with arithmetic",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT-1": "-100.25",
+    "WS-RESULT-2": "200.75",
+    "WS-RESULT-3": "99.50"
+  },
+  "notes": "RESULT-1: 100.50 + (-200.75) = -100.25. RESULT-2: -200.75 * -1 = +200.75. RESULT-3: 300.25 + (-200.75) = +99.50. Sign propagation through COMP-3 arithmetic is critical for bank ledger calculations. Expected display format may vary — engine may show with or without leading sign/zeros."
+}

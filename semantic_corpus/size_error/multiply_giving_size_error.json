@@ -1,0 +1,13 @@
+{
+  "description": "MULTIPLY GIVING with ON SIZE ERROR — result fits, no overflow",
+  "category": "size_error",
+  "inputs": {
+    "WS-QTY": "12",
+    "WS-PRICE": "045.50"
+  },
+  "expected_outputs": {
+    "WS-TOTAL": "546.00",
+    "WS-FLAG": " "
+  },
+  "notes": "12 * 45.50 = 546.00 fits PIC 9(4)V99 max 9999.99. No overflow → WS-FLAG stays space."
+}

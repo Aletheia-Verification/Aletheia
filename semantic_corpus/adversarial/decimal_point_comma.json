@@ -1,0 +1,9 @@
+{
+  "description": "DECIMAL-POINT IS COMMA — European decimal separator convention",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-OUT": "1234.56"
+  },
+  "notes": "KNOWN GAP: DECIMAL-POINT IS COMMA VALUE 1234,56 should be parsed as 1234.56. Engine displays '1234.56' which is the correct value. Display format (with/without decimal) varies by COBOL runtime."
+}

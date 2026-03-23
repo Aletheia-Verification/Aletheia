@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. SPACE-PADDING-MOVE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-SHORT      PIC X(3).
+       01  WS-LONG       PIC X(10).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 'AB' TO WS-SHORT.
+           MOVE WS-SHORT TO WS-LONG.
+           STOP RUN.

@@ -1,0 +1,12 @@
+{
+  "description": "UNSTRING inside PERFORM VARYING loop — splits CSV 'A,B' into WS-P1 and WS-P2",
+  "category": "adversarial",
+  "inputs": {
+    "WS-CSV": "A,B"
+  },
+  "expected_outputs": {
+    "WS-P1": "A",
+    "WS-P2": "B"
+  },
+  "notes": "PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 1 runs exactly once (I=1, then I=2 > 1 exits). Body executes UNSTRING WS-CSV DELIMITED ',' INTO WS-P1 WS-P2. Result: WS-P1='A', WS-P2='B'. Tests UNSTRING verb nested inside PERFORM VARYING loop body."
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Negative value moved to unsigned field becomes absolute value",
+  "category": "sign",
+  "inputs": {
+    "WS-SIGNED": "-123.45"
+  },
+  "expected_outputs": {
+    "WS-UNSIGNED": "123.45"
+  },
+  "notes": "Unsigned PIC fields cannot hold negative values. cobol_types.py:118 applies abs(). -123.45 -> 123.45."
+}

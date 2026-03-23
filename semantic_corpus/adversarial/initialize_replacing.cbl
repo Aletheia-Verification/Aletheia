@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. INIT-REPL.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-GROUP.
+           05  WS-NAME     PIC X(10) VALUE 'JOHN'.
+           05  WS-AMOUNT   PIC 9(5)V99 VALUE 123.45.
+           05  WS-CODE     PIC X(3) VALUE 'ABC'.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           INITIALIZE WS-GROUP
+               REPLACING NUMERIC DATA BY 99.
+           STOP RUN.

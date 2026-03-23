@@ -1,0 +1,262 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PENSION-BENEFIT-CALC.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT SERVICE-FILE
+              ASSIGN TO 'SVCFILE'
+              ORGANIZATION IS SEQUENTIAL
+              FILE STATUS IS WS-SVC-STATUS.
+           SELECT BENEFIT-FILE
+              ASSIGN TO 'BENFILE'
+              ORGANIZATION IS SEQUENTIAL
+              FILE STATUS IS WS-BEN-STATUS.
+
+       DATA DIVISION.
+       FILE SECTION.
+
+       FD SERVICE-FILE.
+       01 SVC-RECORD.
+          05 SVC-EMPLOYEE-ID          PIC X(10).
+          05 SVC-LAST-NAME            PIC X(20).
+          05 SVC-HIRE-YEAR            PIC 9(4).
+          05 SVC-RETIRE-YEAR          PIC 9(4).
+          05 SVC-RETIRE-AGE           PIC 9(2).
+          05 SVC-SALARY-YEAR-1        PIC S9(7)V99.
+          05 SVC-SALARY-YEAR-2        PIC S9(7)V99.
+          05 SVC-SALARY-YEAR-3        PIC S9(7)V99.
+          05 SVC-SALARY-YEAR-4        PIC S9(7)V99.
+          05 SVC-SALARY-YEAR-5        PIC S9(7)V99.
+          05 SVC-SURVIVOR-OPTION      PIC X(1).
+
+       FD BENEFIT-FILE.
+       01 BEN-RECORD.
+          05 BEN-EMPLOYEE-ID          PIC X(10).
+          05 BEN-LAST-NAME            PIC X(20).
+          05 BEN-YEARS-OF-SERVICE     PIC 9(2).
+          05 BEN-HIGH5-AVERAGE        PIC S9(7)V99.
+          05 BEN-BENEFIT-FACTOR       PIC S9(1)V9(4).
+          05 BEN-ANNUAL-BENEFIT       PIC S9(7)V99.
+          05 BEN-MONTHLY-BENEFIT      PIC S9(7)V99.
+          05 BEN-SURVIVOR-REDUCTION   PIC S9(7)V99.
+
+       WORKING-STORAGE SECTION.
+
+       01 WS-FILE-STATUS.
+          05 WS-SVC-STATUS            PIC X(2).
+          05 WS-BEN-STATUS            PIC X(2).
+
+       01 WS-CONTROL.
+          05 WS-EOF-FLAG              PIC X(1).
+             88 END-OF-FILE           VALUE 'Y'.
+             88 NOT-END-OF-FILE       VALUE 'N'.
+          05 WS-RECORD-COUNT          PIC 9(6).
+          05 WS-ERROR-COUNT           PIC 9(4).
+
+       01 WS-CALC-FIELDS.
+          05 WS-YEARS-OF-SERVICE      PIC 9(2).
+          05 WS-HIGH5-TOTAL           PIC S9(9)V99 COMP-3.
+          05 WS-HIGH5-AVERAGE         PIC S9(7)V99 COMP-3.
+          05 WS-BENEFIT-FACTOR        PIC S9(1)V9(4) COMP-3.
+          05 WS-RAW-BENEFIT           PIC S9(9)V99 COMP-3.
+          05 WS-ANNUAL-BENEFIT        PIC S9(9)V99 COMP-3.
+          05 WS-MONTHLY-BENEFIT       PIC S9(7)V99 COMP-3.
+
+       01 WS-SALARY-WORK.
+          05 WS-SALARY-ARRAY          PIC S9(7)V99 COMP-3
+                                      OCCURS 5.
+          05 WS-SORT-TEMP             PIC S9(7)V99 COMP-3.
+          05 WS-IDX                   PIC 9(2).
+          05 WS-IDX2                  PIC 9(2).
+
+       01 WS-EARLY-RETIRE.
+          05 WS-NORMAL-RETIRE-AGE     PIC 9(2) VALUE 65.
+          05 WS-MIN-RETIRE-AGE        PIC 9(2) VALUE 55.
+          05 WS-EARLY-YEARS           PIC 9(2).
+          05 WS-EARLY-REDUCTION-PCT   PIC S9(1)V9(4) COMP-3.
+          05 WS-EARLY-REDUCTION-AMT   PIC S9(7)V99 COMP-3.
+
+       01 WS-COLA-FIELDS.
+          05 WS-COLA-RATE             PIC S9(1)V9(4) COMP-3.
+          05 WS-COLA-YEARS            PIC 9(2).
+          05 WS-COLA-IDX              PIC 9(2).
+          05 WS-COLA-AMOUNT           PIC S9(7)V99 COMP-3.
+          05 WS-PROJECTED-BENEFIT     PIC S9(9)V99 COMP-3.
+
+       01 WS-SURVIVOR-FIELDS.
+          05 WS-SURVIVOR-PCT          PIC S9(1)V9(4) COMP-3.
+          05 WS-SURVIVOR-REDUCTION    PIC S9(7)V99 COMP-3.
+          05 WS-SURVIVOR-BENEFIT      PIC S9(7)V99 COMP-3.
+
+       01 WS-TOTALS.
+          05 WS-TOTAL-BENEFITS        PIC S9(11)V99 COMP-3.
+          05 WS-TOTAL-EARLY           PIC 9(4).
+          05 WS-TOTAL-NORMAL          PIC 9(4).
+
+       PROCEDURE DIVISION.
+
+       0000-MAIN-PROCESS.
+           PERFORM 1000-INITIALIZE
+           PERFORM 1500-OPEN-FILES
+           PERFORM 2000-PROCESS-RECORDS
+              THRU 2900-PROCESS-EXIT
+           PERFORM 9000-CLOSE-FILES
+           STOP RUN.
+
+       1000-INITIALIZE.
+           INITIALIZE WS-CALC-FIELDS
+           INITIALIZE WS-TOTALS
+           MOVE 0 TO WS-RECORD-COUNT
+           MOVE 0 TO WS-ERROR-COUNT
+           SET NOT-END-OF-FILE TO TRUE
+           MOVE 0.02 TO WS-COLA-RATE
+           MOVE 10 TO WS-COLA-YEARS.
+
+       1500-OPEN-FILES.
+           OPEN INPUT SERVICE-FILE
+           OPEN OUTPUT BENEFIT-FILE.
+
+       2000-PROCESS-RECORDS.
+           READ SERVICE-FILE
+              AT END
+                 SET END-OF-FILE TO TRUE
+              NOT AT END
+                 PERFORM 2500-HANDLE-RECORD
+           END-READ
+           IF NOT-END-OF-FILE
+              GO TO 2000-PROCESS-RECORDS
+           END-IF.
+
+       2500-HANDLE-RECORD.
+           PERFORM 3000-CALC-SERVICE-YEARS
+           PERFORM 4000-CALC-HIGH5-AVERAGE
+              THRU 4900-HIGH5-EXIT
+           PERFORM 5000-DETERMINE-BENEFIT-FACTOR
+           PERFORM 6000-APPLY-EARLY-RETIREMENT
+           PERFORM 7000-APPLY-COLA
+           PERFORM 8000-CALC-SURVIVOR-OPTION
+           PERFORM 8500-WRITE-BENEFIT
+           ADD 1 TO WS-RECORD-COUNT.
+
+       2900-PROCESS-EXIT.
+           DISPLAY "TOTAL RECORDS: " WS-RECORD-COUNT
+           DISPLAY "TOTAL BENEFITS: " WS-TOTAL-BENEFITS.
+
+       3000-CALC-SERVICE-YEARS.
+           COMPUTE WS-YEARS-OF-SERVICE =
+              SVC-RETIRE-YEAR - SVC-HIRE-YEAR
+           IF WS-YEARS-OF-SERVICE > 40
+              MOVE 40 TO WS-YEARS-OF-SERVICE
+           END-IF.
+
+       4000-CALC-HIGH5-AVERAGE.
+           MOVE SVC-SALARY-YEAR-1 TO WS-SALARY-ARRAY(1)
+           MOVE SVC-SALARY-YEAR-2 TO WS-SALARY-ARRAY(2)
+           MOVE SVC-SALARY-YEAR-3 TO WS-SALARY-ARRAY(3)
+           MOVE SVC-SALARY-YEAR-4 TO WS-SALARY-ARRAY(4)
+           MOVE SVC-SALARY-YEAR-5 TO WS-SALARY-ARRAY(5)
+           MOVE 0 TO WS-HIGH5-TOTAL
+           PERFORM VARYING WS-IDX FROM 1 BY 1
+              UNTIL WS-IDX > 5
+              ADD WS-SALARY-ARRAY(WS-IDX)
+                 TO WS-HIGH5-TOTAL
+           END-PERFORM
+           COMPUTE WS-HIGH5-AVERAGE =
+              WS-HIGH5-TOTAL / 5.
+
+       4900-HIGH5-EXIT.
+           DISPLAY "HIGH-5 AVERAGE: " WS-HIGH5-AVERAGE.
+
+       5000-DETERMINE-BENEFIT-FACTOR.
+           EVALUATE TRUE
+              WHEN WS-YEARS-OF-SERVICE > 29
+                 MOVE 0.025 TO WS-BENEFIT-FACTOR
+              WHEN WS-YEARS-OF-SERVICE > 19
+                 MOVE 0.02 TO WS-BENEFIT-FACTOR
+              WHEN WS-YEARS-OF-SERVICE > 9
+                 MOVE 0.015 TO WS-BENEFIT-FACTOR
+              WHEN OTHER
+                 MOVE 0.01 TO WS-BENEFIT-FACTOR
+           END-EVALUATE
+           COMPUTE WS-RAW-BENEFIT =
+              WS-HIGH5-AVERAGE * WS-BENEFIT-FACTOR *
+              WS-YEARS-OF-SERVICE
+           MOVE WS-RAW-BENEFIT TO WS-ANNUAL-BENEFIT.
+
+       6000-APPLY-EARLY-RETIREMENT.
+           IF SVC-RETIRE-AGE < WS-NORMAL-RETIRE-AGE
+              IF SVC-RETIRE-AGE >= WS-MIN-RETIRE-AGE
+                 COMPUTE WS-EARLY-YEARS =
+                    WS-NORMAL-RETIRE-AGE - SVC-RETIRE-AGE
+                 IF WS-EARLY-YEARS > 5
+                    COMPUTE WS-EARLY-REDUCTION-PCT =
+                       0.05 + ((WS-EARLY-YEARS - 5) * 0.03)
+                 ELSE
+                    COMPUTE WS-EARLY-REDUCTION-PCT =
+                       WS-EARLY-YEARS * 0.05
+                 END-IF
+                 COMPUTE WS-EARLY-REDUCTION-AMT =
+                    WS-ANNUAL-BENEFIT *
+                    WS-EARLY-REDUCTION-PCT
+                 SUBTRACT WS-EARLY-REDUCTION-AMT
+                    FROM WS-ANNUAL-BENEFIT
+                 ADD 1 TO WS-TOTAL-EARLY
+              ELSE
+                 MOVE 0 TO WS-ANNUAL-BENEFIT
+                 ADD 1 TO WS-ERROR-COUNT
+              END-IF
+           ELSE
+              ADD 1 TO WS-TOTAL-NORMAL
+           END-IF.
+
+       7000-APPLY-COLA.
+           MOVE WS-ANNUAL-BENEFIT TO WS-PROJECTED-BENEFIT
+           PERFORM VARYING WS-COLA-IDX FROM 1 BY 1
+              UNTIL WS-COLA-IDX > WS-COLA-YEARS
+              COMPUTE WS-COLA-AMOUNT =
+                 WS-PROJECTED-BENEFIT * WS-COLA-RATE
+              ADD WS-COLA-AMOUNT TO WS-PROJECTED-BENEFIT
+           END-PERFORM.
+
+       8000-CALC-SURVIVOR-OPTION.
+           COMPUTE WS-MONTHLY-BENEFIT =
+              WS-ANNUAL-BENEFIT / 12
+           IF SVC-SURVIVOR-OPTION = 'J'
+              MOVE 0.10 TO WS-SURVIVOR-PCT
+              COMPUTE WS-SURVIVOR-REDUCTION =
+                 WS-MONTHLY-BENEFIT * WS-SURVIVOR-PCT
+              SUBTRACT WS-SURVIVOR-REDUCTION
+                 FROM WS-MONTHLY-BENEFIT
+              COMPUTE WS-SURVIVOR-BENEFIT =
+                 WS-MONTHLY-BENEFIT * 0.50
+           ELSE
+              IF SVC-SURVIVOR-OPTION = 'S'
+                 MOVE 0.05 TO WS-SURVIVOR-PCT
+                 COMPUTE WS-SURVIVOR-REDUCTION =
+                    WS-MONTHLY-BENEFIT * WS-SURVIVOR-PCT
+                 SUBTRACT WS-SURVIVOR-REDUCTION
+                    FROM WS-MONTHLY-BENEFIT
+                 COMPUTE WS-SURVIVOR-BENEFIT =
+                    WS-MONTHLY-BENEFIT * 0.75
+              ELSE
+                 MOVE 0 TO WS-SURVIVOR-REDUCTION
+                 MOVE 0 TO WS-SURVIVOR-BENEFIT
+              END-IF
+           END-IF.
+
+       8500-WRITE-BENEFIT.
+           MOVE SVC-EMPLOYEE-ID TO BEN-EMPLOYEE-ID
+           MOVE SVC-LAST-NAME TO BEN-LAST-NAME
+           MOVE WS-YEARS-OF-SERVICE TO BEN-YEARS-OF-SERVICE
+           MOVE WS-HIGH5-AVERAGE TO BEN-HIGH5-AVERAGE
+           MOVE WS-BENEFIT-FACTOR TO BEN-BENEFIT-FACTOR
+           MOVE WS-ANNUAL-BENEFIT TO BEN-ANNUAL-BENEFIT
+           MOVE WS-MONTHLY-BENEFIT TO BEN-MONTHLY-BENEFIT
+           MOVE WS-SURVIVOR-REDUCTION TO BEN-SURVIVOR-REDUCTION
+           WRITE BEN-RECORD
+           ADD WS-ANNUAL-BENEFIT TO WS-TOTAL-BENEFITS.
+
+       9000-CLOSE-FILES.
+           CLOSE SERVICE-FILE
+           CLOSE BENEFIT-FILE.

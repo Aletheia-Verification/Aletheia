@@ -1,0 +1,15 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. OCCURS-SUB-COMPUTE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-RATES.
+           05  WS-RATE PIC S9(1)V9(4) OCCURS 3.
+       01  WS-RESULT  PIC S9(5)V9(4).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 0.0500 TO WS-RATE(1).
+           MOVE 0.0300 TO WS-RATE(2).
+           MOVE 0.0200 TO WS-RATE(3).
+           COMPUTE WS-RESULT =
+               WS-RATE(1) + WS-RATE(2) + WS-RATE(3).
+           STOP RUN.

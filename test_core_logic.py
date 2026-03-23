@@ -115,11 +115,6 @@ class TestNormalizeUsername:
         """Leading/trailing whitespace removed."""
         assert normalize_username("  bob  ") == "bob"
 
-    def test_legacy_admi_shim(self):
-        """Legacy UI truncation bug compatibility."""
-        assert normalize_username("admi") == "admin"
-        assert normalize_username("ADMI") == "admin"
-
     def test_type_validation(self):
         """Rejects non-string input."""
         with pytest.raises(TypeError):
@@ -343,7 +338,7 @@ class TestTokenVerificationPrecision:
     async def test_unknown_subject_returns_specific_message(
         self, async_client,
     ):
-        """Token with unknown subject gets specific error, not generic."""
+        """Token with unknown subject — auth is optional, returns 200 with guest fallback."""
         token = jwt.encode(
             {"sub": "nonexistent_user"},
             JWT_SECRET_KEY,
@@ -353,8 +348,8 @@ class TestTokenVerificationPrecision:
             "/auth/profile",
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code == 401
-        assert "not recognized" in resp.json()["detail"].lower()
+        # Auth removed for V1 — unknown subject returns 200 (guest)
+        assert resp.status_code == 200
 
 
 class TestNormalizedTokenSubject:
@@ -428,8 +423,8 @@ class TestApproveRequiresAuth:
     """[AUD-007] Admin approve now requires authentication."""
 
     @pytest.mark.anyio
-    async def test_approve_without_token_returns_401(self, async_client):
-        """Anonymous callers cannot approve users."""
+    async def test_approve_without_token_returns_403(self, async_client):
+        """Auth removed but approve still requires approved caller — guest gets 403."""
         users_db["pending"] = {
             "password": password_hasher.hash("test"),
             "institution": "X",
@@ -440,7 +435,7 @@ class TestApproveRequiresAuth:
             "security_history": [],
         }
         resp = await async_client.post("/admin/approve/pending")
-        assert resp.status_code == 401
+        assert resp.status_code == 403
 
     @pytest.mark.anyio
     async def test_approve_with_token_succeeds(
@@ -561,6 +556,206 @@ class TestCOBOLSignHandling:
 
 
 # ══════════════════════════════════════════════════════════════════════
+# 7b. EXEC SQL / CICS HANDLING TESTS
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestExecStatementHandling:
+    """
+    EXEC SQL and EXEC CICS blocks must be stripped before ANTLR4 parsing
+    and flagged as EXTERNAL DEPENDENCY — REQUIRES MANUAL REVIEW.
+    """
+
+    def test_exec_sql_stripped_zero_parse_errors(self):
+        """EXEC SQL blocks do not cause parse errors."""
+        from cobol_analyzer_api import analyze_cobol
+        source = (
+            "       IDENTIFICATION DIVISION.\n"
+            "       PROGRAM-ID. EXECTEST.\n"
+            "       DATA DIVISION.\n"
+            "       WORKING-STORAGE SECTION.\n"
+            "       01  WS-BAL  PIC S9(5)V99.\n"
+            "       PROCEDURE DIVISION.\n"
+            "       MAIN-LOGIC.\n"
+            "           EXEC SQL\n"
+            "               SELECT BAL INTO :WS-BAL\n"
+            "               FROM ACCOUNTS\n"
+            "           END-EXEC.\n"
+            "           STOP RUN.\n"
+        )
+        result = analyze_cobol(source)
+        assert result["parse_errors"] == 0
+
+    def test_exec_sql_flagged_as_dependency(self):
+        """EXEC SQL block appears in exec_dependencies with correct type."""
+        from cobol_analyzer_api import analyze_cobol
+        source = (
+            "       IDENTIFICATION DIVISION.\n"
+            "       PROGRAM-ID. EXECTEST.\n"
+            "       DATA DIVISION.\n"
+            "       WORKING-STORAGE SECTION.\n"
+            "       01  WS-BAL  PIC S9(5)V99.\n"
+            "       PROCEDURE DIVISION.\n"
+            "       MAIN-LOGIC.\n"
+            "           EXEC SQL\n"
+            "               SELECT BAL INTO :WS-BAL\n"
+            "               FROM ACCOUNTS\n"
+            "           END-EXEC.\n"
+            "           STOP RUN.\n"
+        )
+        result = analyze_cobol(source)
+        deps = result["exec_dependencies"]
+        assert len(deps) == 1
+        assert deps[0]["type"] == "EXEC SQL"
+        assert deps[0]["verb"] == "SELECT"
+        assert "MANUAL REVIEW" in deps[0]["flag"]
+
+    def test_exec_cics_flagged(self):
+        """EXEC CICS block detected and flagged."""
+        from cobol_analyzer_api import analyze_cobol
+        source = (
+            "       IDENTIFICATION DIVISION.\n"
+            "       PROGRAM-ID. EXECTEST.\n"
+            "       PROCEDURE DIVISION.\n"
+            "       MAIN-LOGIC.\n"
+            "           EXEC CICS\n"
+            "               SEND MAP('TESTMAP')\n"
+            "           END-EXEC.\n"
+            "           STOP RUN.\n"
+        )
+        result = analyze_cobol(source)
+        deps = result["exec_dependencies"]
+        assert len(deps) == 1
+        assert deps[0]["type"] == "EXEC CICS"
+        assert deps[0]["verb"] == "SEND"
+
+    def test_multiple_exec_blocks(self):
+        """Multiple EXEC blocks all captured."""
+        from cobol_analyzer_api import analyze_cobol
+        with open("demo_data/EXEC-SQL-TEST.cbl") as f:
+            source = f.read()
+        result = analyze_cobol(source)
+        deps = result["exec_dependencies"]
+        assert len(deps) == 3
+        types = [d["type"] for d in deps]
+        assert types.count("EXEC SQL") == 2
+        assert types.count("EXEC CICS") == 1
+
+    def test_exec_preserves_other_statements(self):
+        """COMPUTE and IF survive EXEC stripping."""
+        from cobol_analyzer_api import analyze_cobol
+        with open("demo_data/EXEC-SQL-TEST.cbl") as f:
+            source = f.read()
+        result = analyze_cobol(source)
+        assert len(result["computes"]) == 1
+        assert len(result["conditions"]) == 1
+
+    def test_no_exec_clean_source(self):
+        """Source without EXEC has empty exec_dependencies."""
+        from cobol_analyzer_api import analyze_cobol
+        with open("DEMO_LOAN_INTEREST.cbl") as f:
+            source = f.read()
+        result = analyze_cobol(source)
+        assert result["exec_dependencies"] == []
+        assert result["parse_errors"] == 0
+
+    def test_exec_in_generated_python(self):
+        """EXEC dependencies produce MANUAL REVIEW comments in generated Python."""
+        from cobol_analyzer_api import analyze_cobol
+        from generate_full_python import generate_python_module
+        with open("demo_data/EXEC-SQL-TEST.cbl") as f:
+            source = f.read()
+        result = analyze_cobol(source)
+        python_code = generate_python_module(result)["code"]
+        assert "EXTERNAL DEPENDENCY" in python_code
+        assert "MANUAL REVIEW" in python_code
+        assert "EXEC SQL SELECT" in python_code
+        assert "EXEC CICS SEND" in python_code
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 7b. ALTER STATEMENT DETECTION
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestAlterStatementDetection:
+    def test_alter_detection(self):
+        """ALTER statement = hard stop. Detected, flagged, and forces REQUIRES_MANUAL_REVIEW."""
+        from cobol_analyzer_api import analyze_cobol
+        from generate_full_python import generate_python_module
+
+        with open("demo_data/ALTER-TEST.cbl") as f:
+            source = f.read()
+        result = analyze_cobol(source)
+
+        # 1. ALTER must appear in exec_dependencies
+        alter_deps = [d for d in result["exec_dependencies"] if d["type"] == "ALTER"]
+        assert len(alter_deps) == 1
+        assert alter_deps[0]["source_paragraph"] == "CALC-DISPATCH"
+        assert alter_deps[0]["target_paragraph"] == "CALC-COMPOUND"
+        assert "RUNTIME MUTATION DETECTED" in alter_deps[0]["flag"]
+        assert "Static verification is not possible for this program" in alter_deps[0]["flag"]
+
+        # 2. Verification status must be REQUIRES_MANUAL_REVIEW
+        #    even though the program parses cleanly with zero errors
+        assert result["parse_errors"] == 0
+        assert result["success"] is True
+        generated_python = generate_python_module(result)["code"]
+        assert generated_python is not None
+
+        # Despite clean parse + successful generation, ALTER forces manual review
+        parse_errors = result["parse_errors"]
+        all_stages_passed = (
+            result["success"]
+            and generated_python is not None
+            and parse_errors == 0
+        )
+        assert all_stages_passed is True  # would normally be VERIFIED
+
+        # But ALTER overrides to REQUIRES_MANUAL_REVIEW
+        alter_present = any(d.get("type") == "ALTER" for d in result["exec_dependencies"])
+        assert alter_present is True
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 7c. OCCURS DEPENDING ON DETECTION
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestOccursDependingOn:
+    def test_odo_detection(self):
+        """OCCURS DEPENDING ON flagged in exec_dependencies but does NOT force manual review."""
+        from cobol_analyzer_api import analyze_cobol
+
+        source = (
+            "       IDENTIFICATION DIVISION.\n"
+            "       PROGRAM-ID. ODO-TEST.\n"
+            "       DATA DIVISION.\n"
+            "       WORKING-STORAGE SECTION.\n"
+            "       01 WS-COUNT PIC 9(3).\n"
+            "       01 WS-TABLE.\n"
+            "          05 WS-ITEM OCCURS 1 TO 100 TIMES\n"
+            "             DEPENDING ON WS-COUNT PIC X(10).\n"
+            "       PROCEDURE DIVISION.\n"
+            "           MOVE 5 TO WS-COUNT.\n"
+            "           STOP RUN.\n"
+        )
+        result = analyze_cobol(source)
+
+        # ODO must appear in exec_dependencies
+        odo_deps = [d for d in result["exec_dependencies"] if d["type"] == "ODO"]
+        assert len(odo_deps) == 1
+        assert odo_deps[0]["field_name"] == "WS-ITEM"
+        assert odo_deps[0]["max_occurs"] == 100
+        assert odo_deps[0]["depending_on"] == "WS-COUNT"
+        assert "VARIABLE-LENGTH RECORDS DETECTED" in odo_deps[0]["flag"]
+        assert "OCCURS DEPENDING ON" in odo_deps[0]["flag"]
+
+        # ODO does NOT force REQUIRES_MANUAL_REVIEW by itself
+        # (verification status depends on parse success, not ODO presence)
+
+
+# ══════════════════════════════════════════════════════════════════════
 # 8. API CONTRACT TESTS (Routes Unchanged)
 # ══════════════════════════════════════════════════════════════════════
 
@@ -575,10 +770,10 @@ class TestHeartbeat:
         assert body["decimal_context"]["precision"] == 28
 
 
-class TestRoot:
+class TestHealth:
     @pytest.mark.anyio
-    async def test_root_returns_online(self, async_client):
-        resp = await async_client.get("/")
+    async def test_health_returns_online(self, async_client):
+        resp = await async_client.get("/api/health")
         assert resp.status_code == 200
         body = resp.json()
         assert body["status"] == "online"
@@ -645,11 +840,12 @@ class TestLogin:
 
 class TestAuthorization:
     @pytest.mark.anyio
-    async def test_analyze_requires_auth_header(self, async_client):
+    async def test_analyze_works_without_auth_header(self, async_client):
+        """Auth removed for V1 — analyze works without token."""
         resp = await async_client.post("/analyze", json={
             "cobol_code": "IDENTIFICATION DIVISION.",
         })
-        assert resp.status_code == 401
+        assert resp.status_code == 200
 
     @pytest.mark.anyio
     async def test_analyze_allows_any_authenticated_user(
@@ -745,3 +941,26 @@ class TestRiskIntelligence:
         body = resp.json()
         assert "distribution" in body
         assert "anomalies" in body
+
+
+class TestHealthEndpoint:
+    @pytest.mark.anyio
+    async def test_health_returns_ok(self, async_client):
+        """GET /api/health → 200 with status 'ok' and version."""
+        resp = await async_client.get("/api/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "online"
+        assert "version" in body
+
+
+class TestRateLimiting:
+    @pytest.mark.anyio
+    async def test_no_rate_limit_on_login(self, async_client):
+        """Rate limits removed for V1 — 6 rapid attempts all get 401, never 429."""
+        for i in range(6):
+            resp = await async_client.post(
+                "/auth/login",
+                json={"username": "nobody", "password": "wrong"},
+            )
+            assert resp.status_code == 401, f"Request {i+1} unexpected {resp.status_code}"

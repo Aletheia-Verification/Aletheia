@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. REF-MOD-VARIABLE.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-DATA          PIC X(20) VALUE 'HELLO WORLD COBOL123'.
+       01  WS-POS           PIC 9(2) VALUE 7.
+       01  WS-LEN           PIC 9(2) VALUE 5.
+       01  WS-OUT           PIC X(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE WS-DATA(WS-POS:WS-LEN) TO WS-OUT.
+           DISPLAY WS-OUT.
+           STOP RUN.

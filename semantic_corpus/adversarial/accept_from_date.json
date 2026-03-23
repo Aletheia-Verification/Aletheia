@@ -1,0 +1,9 @@
+{
+  "description": "ACCEPT FROM DATE: engine returns deterministic placeholder '000000'.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-DATE": "000000"
+  },
+  "notes": "ACCEPT FROM DATE generates a placeholder assignment. Engine uses _ACCEPT_PLACEHOLDERS['DATE'] = '000000' (6-char zero string). IBM COBOL would return YYMMDD of current date. This is a known deterministic placeholder for verification — not a gap, by design."
+}

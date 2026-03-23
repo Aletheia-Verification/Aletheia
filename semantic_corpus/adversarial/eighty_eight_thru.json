@@ -1,0 +1,9 @@
+{
+  "description": "88-level with THRU range: VALUE 10 THRU 50 should be true when base is 30",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "YES"
+  },
+  "notes": "WS-CODE=30 is in range 10-50, so VALID-RANGE is true. 88-level THRU is listed as flagged for manual review in the support matrix, so this may produce a MANUAL REVIEW comment rather than correct code. This tests a very common banking pattern (status code ranges)."
+}

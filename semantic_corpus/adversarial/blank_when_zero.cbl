@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. BLANK-ZERO.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-AMT             PIC 9(5) BLANK WHEN ZERO.
+       01  WS-DISPLAY         PIC X(5).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           MOVE 0 TO WS-AMT.
+           MOVE WS-AMT TO WS-DISPLAY.
+           STOP RUN.

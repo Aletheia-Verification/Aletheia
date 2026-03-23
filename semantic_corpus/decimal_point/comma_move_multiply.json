@@ -1,0 +1,12 @@
+{
+  "description": "DECIMAL-POINT IS COMMA: MOVE with comma literal then COMPUTE multiply",
+  "category": "decimal_point",
+  "inputs": {
+    "WS-PRINCIPAL": "50000.00"
+  },
+  "expected_outputs": {
+    "WS-RATE": "0.0350",
+    "WS-INTEREST": "1750.00"
+  },
+  "notes": "MOVE 0,0350 becomes MOVE 0.0350 after preprocessing. 50000.00 * 0.035 = 1750.00."
+}

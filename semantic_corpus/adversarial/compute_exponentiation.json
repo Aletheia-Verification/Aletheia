@@ -1,0 +1,12 @@
+{
+  "description": "COMPUTE with exponentiation operator **",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 2,
+    "WS-B": 10
+  },
+  "expected_outputs": {
+    "WS-RESULT": "1024"
+  },
+  "notes": "2**10=1024 fits PIC 9(8). Aletheia uses Decimal exponentiation which matches IBM here."
+}

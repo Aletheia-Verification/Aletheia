@@ -1,0 +1,15 @@
+{
+  "description": "5-level nested IF with MOVE at deepest level — all conditions true sets WS-FLAG='DEEP'",
+  "category": "adversarial",
+  "inputs": {
+    "WS-X": "1",
+    "WS-Y": "2",
+    "WS-Z": "3",
+    "WS-W": "4",
+    "WS-V": "5"
+  },
+  "expected_outputs": {
+    "WS-FLAG": "DEEP"
+  },
+  "notes": "Five nested IF conditions: X=1, Y=2, Z=3, W=4, V=5. All match, so MOVE 'DEEP' TO WS-FLAG executes at the innermost level. Tests deeply nested IF without ELSE branches — engine must generate correct indentation and scoping for 5 levels."
+}

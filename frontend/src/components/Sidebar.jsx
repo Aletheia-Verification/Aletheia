@@ -1,117 +1,126 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import {
-    LayoutDashboard,
     Cpu,
-    User,
-    LogOut,
-    ChevronRight
+    GitCompareArrows,
+    Activity,
+    Grid3X3,
+    Settings,
+    Skull,
+    FileJson,
+    Workflow,
+    ChevronDown,
 } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
-import Logo from './Logo';
+import { useColors, LIGHT } from '../hooks/useColors';
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, expanded }) => {
-    return (
-        <button
-            onClick={onClick}
-            className={`
-        w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300
-        ${active
-                    ? 'bg-primary/10 text-primary border border-primary/20'
-                    : 'text-text-dim hover:bg-surface-highlight hover:text-text'}
-      `}
+const MAIN_ITEMS = [
+    { to: '/analyze', icon: Cpu, label: 'Analyze', shortcut: '1' },
+    { to: '/verify', icon: GitCompareArrows, label: 'Verify', shortcut: '2' },
+];
+
+const ADVANCED_ITEMS = [
+    { to: '/portfolio', icon: Grid3X3, label: 'Portfolio', shortcut: '3' },
+    { to: '/compiler-matrix', icon: Settings, label: 'Compiler Matrix', shortcut: '4' },
+    { to: '/dead-code', icon: Skull, label: 'Dead Code', shortcut: '5' },
+    { to: '/sbom', icon: FileJson, label: 'SBOM', shortcut: '6' },
+    { to: '/jcl', icon: Workflow, label: 'JCL', shortcut: '7' },
+    { to: '/trace', icon: Activity, label: 'Trace', shortcut: '8' },
+];
+
+const Sidebar = ({ isOpen, onClose }) => {
+    const C = useColors() || LIGHT;
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+
+    const navClass = ({ isActive }) =>
+        `group flex items-center gap-3 px-5 py-2.5 text-[13px] transition-all duration-150 border-l-2 ${
+            isActive
+                ? 'font-medium border-[#C9A84C]'
+                : 'border-transparent'
+        }`;
+
+    const navStyle = (isActive) => ({
+        color: isActive ? C.navy : C.muted,
+        backgroundColor: isActive ? C.bgAlt : 'transparent',
+    });
+
+    const renderItem = (item) => (
+        <NavLink
+            key={item.to}
+            to={item.to}
+            className={navClass}
+            style={({ isActive }) => navStyle(isActive)}
+            onClick={onClose}
         >
-            <div className="flex-shrink-0">
-                <Icon size={20} strokeWidth={active ? 2.5 : 2} />
-            </div>
-            {expanded && (
-                <span className="text-sm font-medium whitespace-nowrap fade-in">
-                    {label}
+            <item.icon size={18} strokeWidth={1.5} />
+            <span className="flex-1">{item.label}</span>
+            {item.shortcut && (
+                <span
+                    className="text-[9px] font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-150 hidden md:inline"
+                    style={{ color: C.muted }}
+                >
+                    ^{item.shortcut}
                 </span>
             )}
-        </button>
+        </NavLink>
     );
-};
-
-const Sidebar = ({ activeTab, setActiveTab, onLogout }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const { theme, toggleTheme } = useTheme();
-
-    const menuItems = [
-        { id: 'vault', icon: LayoutDashboard, label: 'Vault' },
-        { id: 'engine', icon: Cpu, label: 'The Engine' },
-        { id: 'security', icon: User, label: 'Security' },
-    ];
 
     return (
-        <aside
-            onMouseEnter={() => setIsExpanded(true)}
-            onMouseLeave={() => setIsExpanded(false)}
-            className="fixed left-0 top-0 h-screen bg-background border-r border-border z-50 flex flex-col py-6 transition-all duration-300 shadow-2xl overflow-hidden"
-            style={{ width: isExpanded ? 200 : 64 }}
-        >
-            {/* Top Logo & Branding */}
-            <div
-                onClick={() => setActiveTab('vault')}
-                className="flex items-center px-4 mb-10 overflow-hidden cursor-pointer group"
+        <>
+            {/* Mobile backdrop */}
+            {isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={onClose}
+                />
+            )}
+            <aside
+                className={`
+                    fixed left-0 top-0 h-screen flex flex-col
+                    transition-transform duration-150
+                    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+                    md:translate-x-0
+                `}
+                style={{
+                    width: 240,
+                    backgroundColor: '#FFFFFF',
+                    borderRight: `1px solid ${C.border}`,
+                    zIndex: 40,
+                }}
             >
-                <Logo className="w-8 h-8 flex-shrink-0 group-hover:scale-105 transition-transform" theme={theme} />
-                {isExpanded && (
-                    <span className="ml-4 font-mono font-bold tracking-widest text-primary text-xl group-hover:text-text transition-colors fade-in">
-                        ALETHIA
-                    </span>
-                )}
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 px-2 space-y-2">
-                {menuItems.map((item) => (
-                    <SidebarItem
-                        key={item.id}
-                        icon={item.icon}
-                        label={item.label}
-                        active={activeTab === item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        expanded={isExpanded}
-                    />
-                ))}
-            </nav>
-
-            {/* Bottom Actions */}
-            <div className="px-2 space-y-6">
-                {/* Theme Toggle Slider */}
-                <div className="px-4 py-2">
-                    {isExpanded && (
-                        <span className="text-[10px] uppercase tracking-widest text-text-dim mb-2 block">
-                            Surface Mode
-                        </span>
-                    )}
-                    <div
-                        onClick={toggleTheme}
-                        className={`
-              relative w-10 h-5 rounded-full cursor-pointer transition-colors duration-300
-              ${theme === 'gold' ? 'bg-primary/20' : 'bg-slate-400/20'}
-              border border-border flex items-center
-            `}
-                    >
-                        <div
-                            className={`w-4 h-4 rounded-full shadow-lg ${theme === 'gold' ? 'bg-primary' : 'bg-slate-400'}`}
-                            style={{ transform: `translateX(${theme === 'gold' ? 2 : 22}px)`, transition: 'transform 150ms ease' }}
-                        />
-                    </div>
+                {/* Header spacer */}
+                <div
+                    className="px-5 py-3"
+                    style={{ borderBottom: `1px solid ${C.border}` }}
+                >
+                    <span className="text-[10px] tracking-[0.2em] uppercase font-semibold" style={{ color: C.navy }}>Aletheia</span>
                 </div>
 
-                {/* Logout */}
-                <button
-                    onClick={onLogout}
-                    className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-text-dim hover:text-red-500 hover:bg-red-500/5 transition-all"
-                >
-                    <LogOut size={20} />
-                    {isExpanded && (
-                        <span className="text-sm font-medium">Logout</span>
+                {/* Main nav */}
+                <nav className="flex-1 overflow-y-auto py-2">
+                    {MAIN_ITEMS.map(renderItem)}
+
+                    {/* Advanced toggle */}
+                    <button
+                        onClick={() => setAdvancedOpen(!advancedOpen)}
+                        className="w-full flex items-center gap-3 px-5 py-2.5 text-[12px] mt-2 transition-all duration-150"
+                        style={{ color: C.muted }}
+                    >
+                        <ChevronDown
+                            size={14}
+                            strokeWidth={1.5}
+                            className={`transition-transform duration-150 ${advancedOpen ? 'rotate-180' : ''}`}
+                        />
+                        <span>Advanced</span>
+                    </button>
+
+                    {advancedOpen && (
+                        <div className="pb-1">
+                            {ADVANCED_ITEMS.map(renderItem)}
+                        </div>
                     )}
-                </button>
-            </div>
-        </aside>
+                </nav>
+            </aside>
+        </>
     );
 };
 

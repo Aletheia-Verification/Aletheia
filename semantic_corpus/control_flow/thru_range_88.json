@@ -1,0 +1,9 @@
+{
+  "description": "88-level VALUE THRU generates range check",
+  "category": "control_flow",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "1"
+  },
+  "notes": "IN-RANGE VALUE 10 THRU 50. WS-SCORE is 25 which is in [10..50], so IF IN-RANGE is true → WS-RESULT = 1."
+}

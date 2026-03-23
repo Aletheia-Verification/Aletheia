@@ -1,0 +1,10 @@
+{
+  "description": "ADD CORRESPONDING — matching field names added pairwise across groups",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RES-A": "100",
+    "WS-RES-Q": "200"
+  },
+  "notes": "IBM: ADD CORRESPONDING matches fields pairwise, result=110/220. Aletheia: ADD CORRESPONDING not implemented (only MOVE CORRESPONDING supported). Values unchanged. GAP: ADD/SUBTRACT CORRESPONDING not emitted."
+}

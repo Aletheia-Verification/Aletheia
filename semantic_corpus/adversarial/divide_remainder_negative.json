@@ -1,0 +1,10 @@
+{
+  "description": "DIVIDE negative number with REMAINDER — IBM truncate-toward-zero semantics",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-QUOTIENT": "-3",
+    "WS-REMAINDER": "-2"
+  },
+  "notes": "DIVIDE -17 BY 5: IBM truncates toward zero. Q = trunc(-17/5) = trunc(-3.4) = -3. R = -17 - (-3 * 5) = -17 + 15 = -2. Python divmod gives (-4, 3) which is WRONG for COBOL. The engine must use truncation division, not floor division. Display format with leading sign/zeros may vary."
+}

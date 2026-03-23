@@ -1,0 +1,9 @@
+{
+  "description": "PIC V99 — implied decimal with no integer digits, used as a rate/percentage",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "7500.00"
+  },
+  "notes": "PIC V99 VALUE .75 stores 0.75. MULTIPLY 10000 * 0.75 = 7500.00."
+}

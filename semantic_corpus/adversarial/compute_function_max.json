@@ -1,0 +1,13 @@
+{
+  "description": "FUNCTION MAX \u00e2\u20ac\u201d returns maximum of three numeric arguments",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 5,
+    "WS-B": 15,
+    "WS-C": 10
+  },
+  "expected_outputs": {
+    "WS-RESULT": "15"
+  },
+  "notes": "FUNCTION MAX is in the supported intrinsics list (12 functions). Should emit correctly."
+}

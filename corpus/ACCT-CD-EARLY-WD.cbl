@@ -1,0 +1,87 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. ACCT-CD-EARLY-WD.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-CD-ACCOUNT.
+           05 WS-CD-NUM           PIC X(12).
+           05 WS-CD-PRINCIPAL     PIC S9(9)V99 COMP-3.
+           05 WS-CD-RATE          PIC S9(2)V9(4) COMP-3.
+           05 WS-CD-TERM-MO       PIC 9(3).
+           05 WS-CD-OPEN-DATE     PIC 9(8).
+           05 WS-CD-MATURE-DATE   PIC 9(8).
+       01 WS-CURRENT-DATE         PIC 9(8).
+       01 WS-MONTHS-HELD          PIC 9(3).
+       01 WS-MONTHS-REMAINING     PIC 9(3).
+       01 WS-EARNED-INTEREST      PIC S9(7)V99 COMP-3.
+       01 WS-PENALTY-MONTHS       PIC 9(2).
+       01 WS-PENALTY-AMT          PIC S9(7)V99 COMP-3.
+       01 WS-MONTHLY-INT          PIC S9(5)V99 COMP-3.
+       01 WS-NET-PAYOUT           PIC S9(9)V99 COMP-3.
+       01 WS-PENALTY-TYPE         PIC X(12).
+       01 WS-EFFECTIVE-RATE       PIC S9(2)V9(4) COMP-3.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           PERFORM 1000-CALC-HOLDING-PERIOD
+           PERFORM 2000-CALC-INTEREST
+           PERFORM 3000-CALC-PENALTY
+           PERFORM 4000-CALC-PAYOUT
+           PERFORM 5000-OUTPUT
+           STOP RUN.
+       1000-CALC-HOLDING-PERIOD.
+           ACCEPT WS-CURRENT-DATE FROM DATE YYYYMMDD
+           COMPUTE WS-MONTHS-HELD =
+               (WS-CURRENT-DATE - WS-CD-OPEN-DATE) / 100
+           COMPUTE WS-MONTHS-REMAINING =
+               WS-CD-TERM-MO - WS-MONTHS-HELD
+           IF WS-MONTHS-HELD > WS-CD-TERM-MO
+               MOVE WS-CD-TERM-MO TO WS-MONTHS-HELD
+               MOVE 0 TO WS-MONTHS-REMAINING
+           END-IF.
+       2000-CALC-INTEREST.
+           COMPUTE WS-MONTHLY-INT =
+               WS-CD-PRINCIPAL * WS-CD-RATE / 12
+           COMPUTE WS-EARNED-INTEREST =
+               WS-MONTHLY-INT * WS-MONTHS-HELD.
+       3000-CALC-PENALTY.
+           IF WS-CD-TERM-MO <= 12
+               MOVE 3 TO WS-PENALTY-MONTHS
+               MOVE 'EARLY-3MO   ' TO WS-PENALTY-TYPE
+           ELSE
+               IF WS-CD-TERM-MO <= 36
+                   MOVE 6 TO WS-PENALTY-MONTHS
+                   MOVE 'EARLY-6MO   ' TO WS-PENALTY-TYPE
+               ELSE
+                   MOVE 12 TO WS-PENALTY-MONTHS
+                   MOVE 'EARLY-12MO  ' TO WS-PENALTY-TYPE
+               END-IF
+           END-IF
+           COMPUTE WS-PENALTY-AMT =
+               WS-MONTHLY-INT * WS-PENALTY-MONTHS
+           IF WS-PENALTY-AMT > WS-EARNED-INTEREST
+               MOVE WS-EARNED-INTEREST TO WS-PENALTY-AMT
+           END-IF.
+       4000-CALC-PAYOUT.
+           COMPUTE WS-NET-PAYOUT =
+               WS-CD-PRINCIPAL + WS-EARNED-INTEREST -
+               WS-PENALTY-AMT
+           IF WS-MONTHS-HELD > 0
+               COMPUTE WS-EFFECTIVE-RATE =
+                   ((WS-NET-PAYOUT - WS-CD-PRINCIPAL) /
+                    WS-CD-PRINCIPAL) *
+                   (12 / WS-MONTHS-HELD)
+           ELSE
+               MOVE 0 TO WS-EFFECTIVE-RATE
+           END-IF.
+       5000-OUTPUT.
+           DISPLAY 'CD EARLY WITHDRAWAL'
+           DISPLAY '==================='
+           DISPLAY 'CD NUMBER:     ' WS-CD-NUM
+           DISPLAY 'PRINCIPAL:     $' WS-CD-PRINCIPAL
+           DISPLAY 'STATED RATE:   ' WS-CD-RATE
+           DISPLAY 'TERM (MONTHS): ' WS-CD-TERM-MO
+           DISPLAY 'MONTHS HELD:   ' WS-MONTHS-HELD
+           DISPLAY 'EARNED INT:    $' WS-EARNED-INTEREST
+           DISPLAY 'PENALTY TYPE:  ' WS-PENALTY-TYPE
+           DISPLAY 'PENALTY:       $' WS-PENALTY-AMT
+           DISPLAY 'NET PAYOUT:    $' WS-NET-PAYOUT
+           DISPLAY 'EFFECTIVE RATE:' WS-EFFECTIVE-RATE.

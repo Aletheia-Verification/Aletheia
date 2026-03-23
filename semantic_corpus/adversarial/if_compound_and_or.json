@@ -1,0 +1,13 @@
+{
+  "description": "IF with compound AND/OR: A > 1 AND B < 10 OR C = 99. AND binds tighter.",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "5",
+    "WS-B": "3",
+    "WS-C": "0"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "TRUE"
+  },
+  "notes": "COBOL AND has higher precedence than OR: (A > 1 AND B < 10) OR (C = 99). A=5 > 1 is true, B=3 < 10 is true, so first AND clause is true. C=0 != 99 but doesn't matter. Result='TRUE'. Engine should preserve precedence in generated Python."
+}

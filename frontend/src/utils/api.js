@@ -17,7 +17,6 @@ const buildHeaders = (extra = {}) => {
   const token = getToken();
   return {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
     ...extra,
   };
 };
@@ -102,9 +101,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
+      headers: {},
       body: formData,
     });
     

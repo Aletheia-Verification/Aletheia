@@ -1,0 +1,11 @@
+{
+  "description": "DIVIDE INTO vs BY semantics \u00e2\u20ac\u201d INTO divides identifier by literal",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": 500
+  },
+  "expected_outputs": {
+    "WS-RESULT": "5"
+  },
+  "notes": "DIVIDE 100 INTO WS-A means WS-A / 100 = 500/100 = 5. Common source of bugs: INTO reverses operand order vs BY."
+}

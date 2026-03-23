@@ -1,0 +1,13 @@
+{
+  "description": "STRING DELIMITED BY SIZE concatenates source fields including trailing spaces",
+  "category": "string",
+  "inputs": {
+    "WS-FIRST": "JOHN ",
+    "WS-SEP": "-",
+    "WS-LAST": "DOE  "
+  },
+  "expected_outputs": {
+    "WS-FULL": "JOHN -DOE  "
+  },
+  "notes": "DELIMITED BY SIZE means use full field length. 'JOHN ' + '-' + 'DOE  ' = 'JOHN -DOE  ' (11 chars)."
+}

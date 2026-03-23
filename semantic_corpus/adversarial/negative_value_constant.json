@@ -1,0 +1,9 @@
+{
+  "description": "Negative VALUE constant: WS-X starts at -100, COMPUTE Y = X + 50 = -50",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-Y": "-50"
+  },
+  "notes": "VALUE -100 initializes signed field to -100. COMPUTE Y = X + 50 = -100 + 50 = -50. Fixed: VALUE clause now extracted with sign prefix."
+}

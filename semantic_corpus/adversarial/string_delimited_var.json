@@ -1,0 +1,12 @@
+{
+  "description": "STRING DELIMITED BY variable delimiter — splits at first occurrence",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "HELLO,WORLD",
+    "WS-DELIM": ","
+  },
+  "expected_outputs": {
+    "WS-TGT": "HELLO"
+  },
+  "notes": "Engine emits str(ws_a).split(str(ws_delim), 1)[0]. Result is 'HELLO' — text before the comma delimiter. IBM behavior identical for simple single-char variable delimiter."
+}

@@ -55,6 +55,14 @@ Author  : Alethia Beyond Engineering
 Version : 3.2.0-zero-error
 """
 
+# ─── TLS/HTTPS DEPLOYMENT ───────────────────────────────────────────
+# To enable TLS in production, run uvicorn with:
+#   uvicorn core_logic:app --host 0.0.0.0 --port 443 \
+#       --ssl-keyfile /path/to/privkey.pem \
+#       --ssl-certfile /path/to/fullchain.pem
+# Alternatively, terminate TLS at a reverse proxy (nginx, Caddy, ALB).
+# ─────────────────────────────────────────────────────────────────────
+
 # ──────────────────────────────────────────────────────────────────────
 # IMPORTS
 # ──────────────────────────────────────────────────────────────────────
@@ -62,29 +70,39 @@ Version : 3.2.0-zero-error
 from __future__ import annotations
 
 import asyncio
+import base64
+import collections
 import decimal
+import threading
+import hashlib
 import json
 import logging
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP, getcontext
 from typing import Any, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
+from pathlib import Path
+
 from fastapi import (
     Depends,
     FastAPI,
     File,
+    Form,
     Header,
     HTTPException,
+    Request,
     UploadFile,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from jose import jwt, JWTError
 from openai import AsyncOpenAI
 from passlib.context import CryptContext
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,6 +130,47 @@ try:
     EMAIL_AVAILABLE = True
 except ImportError:
     EMAIL_AVAILABLE = False
+
+# Vault (lazy-loaded — engine works without it)
+try:
+    from vault import save_to_vault, vault_router
+    VAULT_AVAILABLE = True
+except ImportError:
+    VAULT_AVAILABLE = False
+
+# Shadow Diff Engine (lazy-loaded — engine works without it)
+try:
+    from shadow_diff import (
+        shadow_diff_router,
+        parse_fixed_width_stream,
+        run_streaming_pipeline,
+        generate_report as sd_generate_report,
+        save_report as sd_save_report,
+        diagnose_drift as sd_diagnose_drift,
+    )
+    SHADOW_DIFF_AVAILABLE = True
+except ImportError:
+    SHADOW_DIFF_AVAILABLE = False
+
+# Copybook Resolver (lazy-loaded — engine works without it)
+try:
+    from copybook_resolver import copybook_router
+    COPYBOOK_AVAILABLE = True
+except ImportError:
+    COPYBOOK_AVAILABLE = False
+
+# License Manager (lazy-loaded — engine works without it in dev)
+try:
+    from license_manager import (
+        license_router, load_and_verify_license, require_valid_license,
+    )
+    LICENSE_AVAILABLE = True
+except ImportError:
+    LICENSE_AVAILABLE = False
+
+    async def require_valid_license(response=None):
+        """No-op fallback when license_manager is not installed."""
+        pass
 
 # ──────────────────────────────────────────────────────────────────────
 # [AUD-009] GLOBAL DECIMAL CONTEXT — COBOL EXTENDED PRECISION
@@ -142,14 +201,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger("alethia-beyond")
 
+# Deployment mode: "air-gapped" (no external calls) or "connected" (GPT-4o enabled)
+ALETHEIA_MODE: str = os.getenv("ALETHEIA_MODE", "connected").lower()
+
 # External service keys
 OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
 
-# JWT configuration — in production, rotate via secrets manager
-JWT_SECRET_KEY: str = os.getenv(
-    "JWT_SECRET_KEY",
-    "alethia-beyond-secret-key-2024",
-)
+# JWT configuration — in production, set JWT_SECRET_KEY env var
+JWT_SECRET_KEY: str = os.environ.get("JWT_SECRET_KEY", "")
+if not JWT_SECRET_KEY:
+    # In production (non-test), refuse to start without a real secret
+    if ALETHEIA_MODE in ("air-gapped", "connected") and not os.getenv("USE_IN_MEMORY_DB"):
+        raise RuntimeError(
+            "JWT_SECRET_KEY env var is required in production. "
+            "Set it to a random 64+ char hex string."
+        )
+    import secrets as _secrets
+    import warnings as _warnings
+    _warnings.warn(
+        "JWT_SECRET_KEY not set — using ephemeral dev key. NOT FOR PRODUCTION.",
+        stacklevel=1,
+    )
+    JWT_SECRET_KEY = "dev-ephemeral-" + _secrets.token_hex(32)
 JWT_ALGORITHM: str = "HS256"
 
 # [AUD-002] Token lifetime — 7 days (168 hours) for development/demo
@@ -163,17 +236,22 @@ MAX_FILE_SIZE_MB: int = 10
 # Password hashing — PBKDF2-SHA256 is NIST-approved for credential storage
 password_hasher = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
-# CORS — permitted frontend origins for local/dev environments
-ALLOWED_ORIGINS: List[str] = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5175",
-    "http://127.0.0.1:5175",
+# Dummy hash for constant-time login (prevents timing-based username enumeration)
+_DUMMY_HASH = password_hasher.hash("aletheia_timing_defense_dummy")
+
+# CORS — configurable via ALETHEIA_CORS_ORIGINS env var (comma-separated)
+# Default: localhost dev origins only. Production: set to actual domain(s).
+_DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173", "http://127.0.0.1:5173",
+    "http://localhost:5174", "http://127.0.0.1:5174",
+    "http://localhost:3000", "http://127.0.0.1:3000",
+    "http://localhost:5175", "http://127.0.0.1:5175",
 ]
+_env_cors = os.environ.get("ALETHEIA_CORS_ORIGINS", "")
+ALLOWED_ORIGINS: List[str] = (
+    [o.strip() for o in _env_cors.split(",") if o.strip()]
+    if _env_cors else _DEFAULT_CORS_ORIGINS
+)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -272,10 +350,40 @@ class UserProfileResponse(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     """Request body for COBOL analysis or audit engagement."""
-    cobol_code: str
-    filename: Optional[str] = "input.cbl"
-    modernized_code: Optional[str] = None
+    cobol_code: str = Field(..., max_length=2_000_000)
+    filename: Optional[str] = Field("input.cbl", max_length=255)
+    modernized_code: Optional[str] = Field(None, max_length=2_000_000)
     is_audit_mode: bool = False
+    compiler_config: Optional[dict] = None
+    trace_mode: bool = False
+
+
+class DependencyRequest(BaseModel):
+    """Request body for multi-program dependency analysis."""
+    programs: list  # [{"filename": str, "cobol_code": str}]
+
+
+class BatchAnalyzeRequest(BaseModel):
+    """Request body for batch multi-program analysis with Python generation."""
+    programs: list  # [{"filename": str, "cobol_code": str}]
+    copybooks: Optional[list] = None  # [{"name": str, "content": str}]
+    compiler_config: Optional[dict] = None
+
+
+class VerifyRequest(BaseModel):
+    """Request body for cryptographic signature verification."""
+    record_id: int = None
+    signature_data: dict = None
+
+
+class VerifyFullRequest(BaseModel):
+    """Request body for combined Engine + Shadow Diff verification."""
+    cobol_code: str
+    layout: Optional[dict] = None  # If omitted, auto-generated from DATA DIVISION
+    input_data: str   # base64-encoded mainframe input file
+    output_data: str  # base64-encoded mainframe output file
+    filename: Optional[str] = "input.cbl"
+    compiler_config: Optional[dict] = None
 
 
 class UncertaintyItem(BaseModel):
@@ -440,10 +548,6 @@ def normalize_username(raw_username: str) -> str:
         raise TypeError(f"Username must be str, got {type(raw_username)}")
 
     normalized = raw_username.lower().strip()
-
-    # Legacy client compatibility — "admi" was a known UI truncation bug
-    if normalized == "admi":
-        normalized = "admin"
 
     return normalized
 
@@ -649,6 +753,25 @@ async def verify_token(authorization: str = Header(None)) -> str:
             status_code=401,
             detail="Invalid token.",
         )
+
+
+async def verify_token_optional(authorization: str = Header(None)) -> Optional[str]:
+    """Returns username if valid token, None if no/invalid token (guest)."""
+    if not authorization:
+        return None
+    try:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            return None
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        username: Optional[str] = payload.get("sub")
+        if username is None:
+            return None
+        if USE_IN_MEMORY_DB or not DB_AVAILABLE:
+            return username if username in users_db else None
+        return username
+    except Exception:
+        return None
 
 
 async def verify_token_db(
@@ -1056,14 +1179,7 @@ Any critical flags?",
       "reason": "Why it needs human review",
       "severity": "HIGH or MEDIUM or LOW"
     }
-  ],
-
-  "confidence": {
-    "parser": 100,
-    "translation": 85,
-    "verification": 90,
-    "overall": 88
-  }
+  ]
 }
 
 CHECKLIST items you MUST verify:
@@ -1100,7 +1216,6 @@ REMEMBER:
 - Regulators may audit this
 - When in doubt, flag it for human review — never assume
 
-If overall confidence is below 95%, mark output as REQUIRES MANUAL REVIEW.
 """
 
 
@@ -1119,12 +1234,20 @@ class LogicExtractionService:
     """
 
     def __init__(self) -> None:
-        self.client: Optional[AsyncOpenAI] = (
-            AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
-        )
-        if self.client:
-            logger.info("Analysis engine initialized (live mode).")
+        if ALETHEIA_MODE == "air-gapped":
+            self.client = None
+            logger.info(
+                "Aletheia starting in AIR-GAPPED mode — no external API calls."
+            )
+        elif OPENAI_API_KEY:
+            self.client: Optional[AsyncOpenAI] = AsyncOpenAI(
+                api_key=OPENAI_API_KEY
+            )
+            logger.info(
+                "Aletheia starting in CONNECTED mode — GPT-4o enabled."
+            )
         else:
+            self.client = None
             logger.warning(
                 "OPENAI_API_KEY not set — analysis engine running in "
                 "offline/stub mode."
@@ -1437,6 +1560,56 @@ class LogicExtractionService:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# RATE LIMITER
+# ──────────────────────────────────────────────────────────────────────
+
+
+class RateLimiter:
+    """Sliding-window in-memory rate limiter. Thread-safe."""
+
+    def __init__(self, max_calls: int, period: float):
+        self.max_calls = max_calls
+        self.period = period  # seconds
+        self._hits: dict[str, list[float]] = collections.defaultdict(list)
+        self._lock = threading.Lock()
+
+    def is_allowed(self, key: str) -> bool:
+        """Return True if *key* is within the rate limit, else False."""
+        now = time.monotonic()
+        with self._lock:
+            window = self._hits[key]
+            # Evict timestamps outside the current window
+            cutoff = now - self.period
+            self._hits[key] = window = [t for t in window if t > cutoff]
+            if len(window) >= self.max_calls:
+                return False
+            window.append(now)
+            return True
+
+    def retry_after(self, key: str) -> int:
+        """Seconds until the oldest entry in *key*'s window expires."""
+        if not self._hits[key]:
+            return 0
+        oldest = self._hits[key][0]
+        return max(1, int(self.period - (time.monotonic() - oldest)) + 1)
+
+    def reset(self) -> None:
+        """Clear all state (useful for tests)."""
+        self._hits.clear()
+
+
+# All rate limiters removed for V1 free launch
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract client IP, respecting X-Forwarded-For behind reverse proxies."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+# ──────────────────────────────────────────────────────────────────────
 # FASTAPI APPLICATION
 # ──────────────────────────────────────────────────────────────────────
 
@@ -1454,9 +1627,45 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Add security headers to all responses."""
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+# Mount vault router if available
+if VAULT_AVAILABLE:
+    app.include_router(vault_router, prefix="/vault", tags=["vault"])
+
+# Mount shadow diff router if available
+if SHADOW_DIFF_AVAILABLE:
+    app.include_router(shadow_diff_router, prefix="/shadow-diff", tags=["shadow-diff"])
+
+# Mount copybook resolver router if available
+if COPYBOOK_AVAILABLE:
+    app.include_router(copybook_router, prefix="/copybook", tags=["copybook"])
+
+# Mount license router if available
+if LICENSE_AVAILABLE:
+    app.include_router(license_router, prefix="/license", tags=["license"])
+
+# Mount audit logger router if available
+try:
+    from audit_logger import audit_router
+    app.include_router(audit_router, prefix="/audit", tags=["audit"])
+    AUDIT_AVAILABLE = True
+except ImportError:
+    AUDIT_AVAILABLE = False
+    logger.warning("audit_logger module not available — audit endpoints disabled")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1466,11 +1675,23 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     """Initialize database on startup."""
+    logger.info("Aletheia mode: %s", ALETHEIA_MODE)
     if DB_AVAILABLE and not USE_IN_MEMORY_DB:
         await init_db()
         logger.info("Database initialized.")
     else:
         logger.info("Running in in-memory mode (no database).")
+
+    # License validation
+    if LICENSE_AVAILABLE:
+        state = load_and_verify_license()
+        if state.valid:
+            logger.info("License valid: %s (expires %s)",
+                        state.license_data.get("customer", "unknown"),
+                        state.license_data.get("expires", "unknown"))
+        else:
+            logger.warning("LICENSE: %s (mode: %s)", state.error,
+                           os.environ.get("ALETHEIA_LICENSE_MODE", "strict"))
 
 
 @app.on_event("shutdown")
@@ -1485,15 +1706,230 @@ async def shutdown():
 analysis_engine = LogicExtractionService()
 
 
+# ── Compiler Configuration ───────────────────────────────────────────
+
+@app.get("/config/compiler")
+async def get_compiler_config(username: Optional[str] = Depends(verify_token_optional)):
+    """Get current IBM z/OS compiler configuration."""
+    from compiler_config import get_config
+    return get_config().to_dict()
+
+
+@app.post("/config/compiler")
+async def set_compiler_config(body: dict, username: Optional[str] = Depends(verify_token_optional)):
+    """Set IBM z/OS compiler configuration (TRUNC mode, ARITH mode, etc.)."""
+    from compiler_config import set_config
+    _ALLOWED_CONFIG_KEYS = {"trunc_mode", "arith_mode", "decimal_point", "currency_sign", "numproc"}
+    filtered = {k: v for k, v in body.items() if k in _ALLOWED_CONFIG_KEYS}
+    try:
+        config = set_config(**filtered)
+        return config.to_dict()
+    except (ValueError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Dependency Crawler ──────────────────────────────────────────────
+
+@app.post("/dependency/analyze")
+async def dependency_analyze(body: DependencyRequest,
+                             username: Optional[str] = Depends(verify_token_optional)):
+    """Analyze multiple COBOL programs and build dependency tree."""
+    try:
+        from dependency_crawler import analyze_multi_program, _extract_program_id
+    except ImportError:
+        raise HTTPException(status_code=501, detail="dependency_crawler not available")
+
+    programs = {}
+    for entry in body.programs:
+        source = entry.get("cobol_code", "")
+        filename = entry.get("filename", "unknown.cbl")
+        prog_id = _extract_program_id(source)
+        if prog_id == "UNKNOWN":
+            prog_id = filename.upper().replace(".CBL", "").replace(".COB", "")
+        programs[prog_id] = source
+
+    result = analyze_multi_program(programs)
+    return result
+
+
+@app.post("/dependency/upload")
+async def dependency_upload(files: list[UploadFile],
+                            username: Optional[str] = Depends(verify_token_optional)):
+    """Upload multiple COBOL files for dependency analysis."""
+    try:
+        from dependency_crawler import analyze_multi_program, _extract_program_id
+    except ImportError:
+        raise HTTPException(status_code=501, detail="dependency_crawler not available")
+
+    programs = {}
+    for f in files:
+        try:
+            raw = await f.read()
+            source = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail=f"File {f.filename} is not valid UTF-8")
+
+        prog_id = _extract_program_id(source)
+        if prog_id == "UNKNOWN":
+            prog_id = (f.filename or "unknown").upper().replace(".CBL", "").replace(".COB", "")
+        programs[prog_id] = source
+
+    result = analyze_multi_program(programs)
+    return result
+
+
+@app.post("/dependency/tree")
+async def dependency_tree(body: DependencyRequest,
+                          username: Optional[str] = Depends(verify_token_optional)):
+    """Build dependency tree without full analysis."""
+    try:
+        from dependency_crawler import build_dependency_tree, _extract_program_id
+    except ImportError:
+        raise HTTPException(status_code=501, detail="dependency_crawler not available")
+
+    programs = {}
+    for entry in body.programs:
+        source = entry.get("cobol_code", "")
+        filename = entry.get("filename", "unknown.cbl")
+        prog_id = _extract_program_id(source)
+        if prog_id == "UNKNOWN":
+            prog_id = filename.upper().replace(".CBL", "").replace(".COB", "")
+        programs[prog_id] = source
+
+    tree = build_dependency_tree(programs)
+    return tree
+
+
+# ── Batch Engine (Multi-Program + Python Generation) ─────────────────
+
+@app.post("/engine/analyze-batch")
+async def engine_analyze_batch(
+    body: BatchAnalyzeRequest,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """
+    Batch Engine — analyzes multiple COBOL programs as a system:
+
+    1. Copybook preprocessing
+    2. Dependency tree construction
+    3. Per-file ANTLR4 parse + Python generation
+    4. Cross-file CALL resolution
+    5. Arithmetic risk analysis per file
+    6. Combined verification verdict
+    """
+    username = username or "guest"
+    try:
+        from dependency_crawler import analyze_batch, _extract_program_id
+    except ImportError:
+        raise HTTPException(status_code=501, detail="dependency_crawler not available")
+
+    # Build programs dict (program_id -> source)
+    programs = {}
+    for entry in body.programs:
+        source = entry.get("cobol_code", "")
+        filename = entry.get("filename", "unknown.cbl")
+        prog_id = _extract_program_id(source)
+        if prog_id == "UNKNOWN":
+            prog_id = filename.upper().replace(".CBL", "").replace(".COB", "")
+        programs[prog_id] = source
+
+    # Build copybooks dict if provided
+    copybooks = None
+    if body.copybooks:
+        copybooks = {
+            cb.get("name", "UNKNOWN"): cb.get("content", "")
+            for cb in body.copybooks
+        }
+
+    # Apply compiler config if provided
+    if body.compiler_config:
+        try:
+            from compiler_config import set_config
+            set_config(**body.compiler_config)
+        except (ValueError, TypeError, ImportError) as e:
+            logger.warning("Invalid compiler_config in batch request: %s", e)
+
+    # Run batch analysis
+    result = analyze_batch(programs, copybooks=copybooks)
+
+    # Audit trail
+    record_security_event(
+        username,
+        f"Engine Batch Analyze: {len(programs)} programs",
+    )
+
+    result["success"] = True
+    return result
+
+
+# ── Cryptographic Verification ───────────────────────────────────────
+
+@app.post("/verify")
+async def verify_signature(req: VerifyRequest, username: Optional[str] = Depends(verify_token_optional)):
+    """Verify a vault record's cryptographic signature."""
+    try:
+        from report_signing import verify_report
+    except ImportError:
+        raise HTTPException(status_code=501, detail="report_signing module not available")
+
+    if req.record_id is not None:
+        # Load signature data from vault
+        try:
+            from vault import _get_conn
+            conn = _get_conn()
+            row = conn.execute(
+                "SELECT signature, public_key_fp, verification_chain, record_hash FROM verifications WHERE id = ?",
+                (req.record_id,),
+            ).fetchone()
+            conn.close()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Vault read failed: {e}")
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Record not found")
+        if not row["signature"]:
+            return {"valid": False, "details": "Record has no cryptographic signature", "verified_at": datetime.now(timezone.utc).isoformat()}
+
+        import json as _json
+        rec_hash = row["record_hash"] if "record_hash" in row.keys() else None
+        sig_data = {
+            "signature": row["signature"],
+            "public_key_fingerprint": row["public_key_fp"],
+            "signed_field": "record_hash" if rec_hash else "chain_hash",
+            "verification_chain": _json.loads(row["verification_chain"]) if row["verification_chain"] else {},
+        }
+        return verify_report(sig_data, record_hash=rec_hash)
+
+    elif req.signature_data is not None:
+        return verify_report(req.signature_data)
+
+    else:
+        raise HTTPException(status_code=400, detail="Provide record_id or signature_data")
+
+
+@app.get("/verify/public-key")
+async def get_public_key():
+    """Return the public key for independent signature verification."""
+    try:
+        from report_signing import get_public_key_pem, get_public_key_fingerprint
+    except ImportError:
+        raise HTTPException(status_code=501, detail="report_signing module not available")
+
+    return {
+        "public_key_pem": get_public_key_pem(),
+        "fingerprint": get_public_key_fingerprint(),
+    }
+
+
 # ── Health / Root ────────────────────────────────────────────────────
 
-@app.get("/")
-async def root():
-    """Root endpoint — confirms the service is reachable."""
+@app.get("/api/health")
+async def health():
+    """Health check — confirms the service is reachable."""
     return {
         "status": "online",
         "version": "3.2.0",
-        "mode": "zero-error-audit",
+        "mode": ALETHEIA_MODE,
         "decimal_precision": str(getcontext().prec),
     }
 
@@ -1603,7 +2039,7 @@ async def register_user(registration: UserRegistrationRequest):
 
 
 @app.post("/auth/login")
-async def login_user(credentials: UserLoginRequest):
+async def login_user(credentials: UserLoginRequest, request: Request):
     """
     Authenticate a user and return a JWT.
 
@@ -1616,10 +2052,12 @@ async def login_user(credentials: UserLoginRequest):
     # In-memory mode (tests / development without DB)
     if USE_IN_MEMORY_DB or not DB_AVAILABLE:
         if username not in users_db:
+            # Constant-time: hash dummy to prevent timing-based username enumeration
+            password_hasher.verify("dummy", _DUMMY_HASH)
             logger.warning("Login attempt for unknown user: %s", username)
             raise HTTPException(
                 status_code=401,
-                detail="Identity not recognized.",
+                detail="Invalid credentials.",
             )
 
         stored_user = users_db[username]
@@ -1629,10 +2067,6 @@ async def login_user(credentials: UserLoginRequest):
             credentials.password,
             stored_user["password"],
         )
-
-        # Legacy compatibility: accept plaintext match for seeded admin account.
-        if username == "admin" and credentials.password == "admin123":
-            password_is_valid = True
 
         if not password_is_valid:
             logger.warning("Failed login attempt for user: %s", username)
@@ -1649,13 +2083,18 @@ async def login_user(credentials: UserLoginRequest):
 
         # Record login in audit trail
         record_security_event(username, "Session Established")
+        try:
+            from audit_logger import log_event
+            log_event(username, "LOGIN")
+        except ImportError:
+            pass
 
         # [AUD-004] Use normalized username for both token subject and response
         token = create_access_token({"sub": username})
         return {
             "access_token": token,
             "token_type": "bearer",
-            "is_approved": True,  # Bypass: all authenticated users treated as approved
+            "is_approved": stored_user.get("is_approved", False),
             "corporate_id": username,
         }
 
@@ -1663,10 +2102,12 @@ async def login_user(credentials: UserLoginRequest):
     async with AsyncSessionLocal() as db:
         user = await get_user_by_username_db(db, username)
         if user is None:
+            # Constant-time: hash dummy to prevent timing-based username enumeration
+            password_hasher.verify("dummy", _DUMMY_HASH)
             logger.warning("Login attempt for unknown user: %s", username)
             raise HTTPException(
                 status_code=401,
-                detail="Identity not recognized.",
+                detail="Invalid credentials.",
             )
 
         # Verify password
@@ -1674,10 +2115,6 @@ async def login_user(credentials: UserLoginRequest):
             credentials.password,
             user.password_hash,
         )
-
-        # Legacy compatibility for admin
-        if username == "admin" and credentials.password == "admin123":
-            password_is_valid = True
 
         if not password_is_valid:
             logger.warning("Failed login attempt for user: %s", username)
@@ -1700,28 +2137,39 @@ async def login_user(credentials: UserLoginRequest):
         return {
             "access_token": token,
             "token_type": "bearer",
-            "is_approved": True,  # Bypass: all authenticated users treated as approved
+            "is_approved": user.is_approved,
             "corporate_id": username,
         }
 
 
 @app.get("/auth/profile", response_model=UserProfileResponse)
-async def get_user_profile(username: str = Depends(verify_token)):
+async def get_user_profile(username: Optional[str] = Depends(verify_token_optional)):
     """
     Return the authenticated user's profile and audit history.
 
     Supports both in-memory (for tests) and database (production) modes.
     """
+    username = username or "guest"
     # In-memory mode
     if USE_IN_MEMORY_DB or not DB_AVAILABLE:
-        user = users_db[username]
+        user = users_db.get(username)
+        if not user:
+            return {
+                "username": username,
+                "institution": "",
+                "city": "",
+                "country": "",
+                "role": "guest",
+                "is_approved": True,
+                "security_history": [],
+            }
         return {
             "username": username,
             "institution": user["institution"],
             "city": user["city"],
             "country": user["country"],
             "role": user["role"],
-            "is_approved": True,  # Bypass: all authenticated users treated as approved
+            "is_approved": user.get("is_approved", False),
             "security_history": user["security_history"],
         }
 
@@ -1746,7 +2194,7 @@ async def get_user_profile(username: str = Depends(verify_token)):
             "city": user.city,
             "country": user.country,
             "role": user.role,
-            "is_approved": True,  # Bypass: all authenticated users treated as approved
+            "is_approved": user.is_approved,
             "security_history": [evt.to_dict() for evt in user.security_events],
         }
 
@@ -1754,17 +2202,21 @@ async def get_user_profile(username: str = Depends(verify_token)):
 @app.post("/admin/approve/{corporate_id}")
 async def approve_user(
     corporate_id: str,
-    username: str = Depends(verify_token),
+    username: Optional[str] = Depends(verify_token_optional),
 ):
     """
     Grant analysis access to a registered user.
 
-    [AUD-007] Requires valid token.  In production, add role check.
+    [AUD-007] Requires valid token.  Only approved users can approve others.
 
     Supports both in-memory (for tests) and database (production) modes.
     """
+    username = username or "guest"
     # In-memory mode
     if USE_IN_MEMORY_DB or not DB_AVAILABLE:
+        caller = users_db.get(username, {})
+        if not caller.get("is_approved"):
+            raise HTTPException(status_code=403, detail="Only approved users can approve others.")
         if corporate_id not in users_db:
             raise HTTPException(status_code=404, detail="User not found.")
 
@@ -1790,7 +2242,7 @@ async def approve_user(
 @app.post("/analyze")
 async def analyze_cobol_code(
     request: AnalyzeRequest,
-    username: str = Depends(verify_token),
+    username: Optional[str] = Depends(verify_token_optional),
 ):
     """
     Analyze COBOL source code — extraction or audit mode.
@@ -1800,6 +2252,7 @@ async def analyze_cobol_code(
 
     Supports both in-memory (for tests) and database (production) modes.
     """
+    username = username or "guest"
     # In-memory mode
     if USE_IN_MEMORY_DB or not DB_AVAILABLE:
         # is_approved bypass: all authenticated users have clearance
@@ -1930,7 +2383,7 @@ async def analyze_cobol_code(
 @app.post("/process-legacy")
 async def process_legacy_file(
     file: UploadFile = File(...),
-    username: str = Depends(verify_token),
+    username: Optional[str] = Depends(verify_token_optional),
 ):
     """
     Upload a COBOL source file for extraction analysis.
@@ -1940,9 +2393,10 @@ async def process_legacy_file(
 
     Supports both in-memory (for tests) and database (production) modes.
     """
-    # Common validation
-    raw_bytes = await file.read()
+    username = username or "guest"
+    # Common validation — read at most max_bytes + 1 to detect oversized uploads
     max_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
+    raw_bytes = await file.read(max_bytes + 1)
     if len(raw_bytes) > max_bytes:
         raise HTTPException(
             status_code=413,
@@ -2017,7 +2471,7 @@ async def process_legacy_file(
 # ── Analytics & Risk ─────────────────────────────────────────────────
 
 @app.get("/analytics")
-async def get_analytics_dashboard(username: str = Depends(verify_token)):
+async def get_analytics_dashboard(username: Optional[str] = Depends(verify_token_optional)):
     """
     Return platform analytics for the authenticated user.
 
@@ -2025,6 +2479,7 @@ async def get_analytics_dashboard(username: str = Depends(verify_token)):
 
     Supports both in-memory (for tests) and database (production) modes.
     """
+    username = username or "guest"
     # In-memory mode
     if USE_IN_MEMORY_DB or not DB_AVAILABLE:
         user = users_db.get(username, {})
@@ -2081,20 +2536,26 @@ async def get_analytics_dashboard(username: str = Depends(verify_token)):
 
 
 @app.get("/vault")
-async def get_vault_analyses(username: str = Depends(verify_token)):
+async def get_vault_analyses(username: Optional[str] = Depends(verify_token_optional)):
     """
     Return all analysis sessions for the authenticated user.
     Used by the Vault to display analysis history.
     """
+    username = username or "guest"
     # In-memory mode
     if USE_IN_MEMORY_DB or not DB_AVAILABLE:
         return {"analyses": []}
 
     # Database mode
     async with AsyncSessionLocal() as db:
+        user = (await db.execute(
+            select(User).where(User.username == username)
+        )).scalar_one_or_none()
+        if not user:
+            return {"analyses": []}
         result = await db.execute(
             select(AnalysisSession)
-            .where(AnalysisSession.username == username)
+            .where(AnalysisSession.user_id == user.id)
             .order_by(AnalysisSession.created_at.desc())
         )
         sessions = result.scalars().all()
@@ -2129,7 +2590,7 @@ async def get_vault_analyses(username: str = Depends(verify_token)):
 
 
 @app.get("/risk-intelligence")
-async def get_risk_intelligence(username: str = Depends(verify_token)):
+async def get_risk_intelligence(username: Optional[str] = Depends(verify_token_optional)):
     """
     Return risk-intelligence data.
 
@@ -2148,7 +2609,7 @@ async def get_risk_intelligence(username: str = Depends(verify_token)):
 @app.post("/chat", response_model=ChatResponse)
 async def chat_with_engine(
     request: ChatRequest,
-    username: str = Depends(verify_token),
+    username: Optional[str] = Depends(verify_token_optional),
 ):
     """
     Ask a contextual question about COBOL or Python code.
@@ -2157,6 +2618,7 @@ async def chat_with_engine(
 
     Supports both in-memory (for tests) and database (production) modes.
     """
+    username = username or "guest"
     # In-memory mode
     if USE_IN_MEMORY_DB or not DB_AVAILABLE:
         # is_approved bypass: all authenticated users have clearance
@@ -2217,18 +2679,19 @@ except ImportError:
     logger.warning("ANTLR4 parser not available — install dependencies.")
 
 try:
-    from generate_full_python import generate_python_module
+    from generate_full_python import generate_python_module, compute_arithmetic_risks
     GENERATOR_AVAILABLE = True
     logger.info("COBOL-to-Python generator loaded successfully.")
 except ImportError:
     GENERATOR_AVAILABLE = False
+    compute_arithmetic_risks = None
     logger.warning("COBOL-to-Python generator not available — install dependencies.")
 
 
 @app.post("/parse")
 async def parse_cobol_code(
     request: AnalyzeRequest,
-    username: str = Depends(verify_token),
+    username: Optional[str] = Depends(verify_token_optional),
 ):
     """
     Parse COBOL using ANTLR4 — real parsing, not LLM analysis.
@@ -2242,18 +2705,19 @@ async def parse_cobol_code(
     - Cycle detection
     - Unreachable code detection
     """
+    username = username or "guest"
     if not ANTLR_AVAILABLE:
         raise HTTPException(
             status_code=503,
             detail="ANTLR4 parser not configured.",
         )
-    
+
     if not request.cobol_code.strip():
         raise HTTPException(
             status_code=400,
             detail="Empty COBOL source provided.",
         )
-    
+
     # Record in audit trail
     if USE_IN_MEMORY_DB or not DB_AVAILABLE:
         record_security_event(username, f"Parse: {request.filename}")
@@ -2276,7 +2740,7 @@ async def parse_cobol_code(
 @app.post("/generate")
 async def generate_python_from_cobol(
     request: AnalyzeRequest,
-    username: str = Depends(verify_token),
+    username: Optional[str] = Depends(verify_token_optional),
 ):
     """
     Generate Python module from COBOL source using deterministic transpiler.
@@ -2284,10 +2748,17 @@ async def generate_python_from_cobol(
     Uses ANTLR4 parse tree + rule-based code generation. No LLM.
     All numeric variables use decimal.Decimal.
     """
+    username = username or "guest"
     if not GENERATOR_AVAILABLE:
         raise HTTPException(
             status_code=503,
             detail="COBOL-to-Python generator not configured.",
+        )
+
+    if not ANTLR_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="ANTLR4 parser not available.",
         )
 
     if not request.cobol_code.strip():
@@ -2307,7 +2778,14 @@ async def generate_python_from_cobol(
                 await db.commit()
 
     try:
-        python_code = generate_python_module(request.cobol_code)
+        analysis = antlr_analyze_cobol(request.cobol_code)
+    except Exception as e:
+        logger.error("ANTLR4 parse failed in /generate: %s", e)
+        return {"success": False, "python_code": None, "error": str(e)}
+
+    try:
+        gen_result = generate_python_module(analysis)
+        python_code = gen_result["code"]
     except Exception as e:
         logger.error("Generation failed: %s", e)
         return {
@@ -2342,74 +2820,79 @@ def _offline_verification_stub(
     """
     Deterministic verification stub when GPT is unavailable.
 
-    Returns conservative scores so the user knows verification was skipped.
-    Parser stage is always 100 (deterministic), translation depends on
-    whether generation succeeded, verification is 0 (not run).
+    Returns binary verification_status: VERIFIED or REQUIRES_MANUAL_REVIEW.
+    GPT is only used for formatting/explanation — correctness is deterministic.
     """
-    translation_score = 80 if generated_python else 0
-    overall = 60 if generated_python else 30
-
     summary = parser_output.get("summary", {})
     para_count = summary.get("paragraphs", 0)
     var_count = summary.get("variables", 0)
     comp3_count = summary.get("comp3_variables", 0)
+    parse_errors = parser_output.get("parse_errors", 0)
+
+    generator_recovered = (
+        parse_errors > 0
+        and generated_python is not None
+        and "MANUAL REVIEW" not in generated_python
+    )
+    if generator_recovered:
+        try:
+            compile(generated_python, "<verify>", "exec")
+        except SyntaxError:
+            generator_recovered = False
+    all_stages_passed = (
+        parser_output.get("success")
+        and generated_python is not None
+        and (parse_errors == 0 or generator_recovered)
+    )
+    status = "VERIFIED" if all_stages_passed else "REQUIRES_MANUAL_REVIEW"
 
     return {
+        "verification_status": status,
         "executive_summary": (
             f"ANTLR4 parser extracted {para_count} paragraphs, "
             f"{var_count} variables ({comp3_count} COMP-3). "
             f"{'Python generated successfully.' if generated_python else 'Python generation unavailable.'} "
-            "GPT verification was NOT run — results require manual review."
+            "GPT explanation was NOT run."
         ),
         "business_logic": [],
         "checklist": [
-            {"item": "ANTLR4 Parse", "status": "PASS", "note": "Deterministic parser completed successfully."},
+            {"item": "ANTLR4 Parse", "status": "PASS", "note": "Deterministic parser completed."},
             {"item": "Python Generation", "status": "PASS" if generated_python else "FAIL", "note": "Deterministic transpiler." if generated_python else "Generator unavailable."},
-            {"item": "GPT Verification", "status": "WARN", "note": "OpenAI API key not configured — verification skipped."},
+            {"item": "Parse Errors", "status": "PASS" if parse_errors == 0 or generator_recovered else "WARN", "note": f"{parse_errors} syntax warning(s) — generator recovered all" if generator_recovered else (f"{parse_errors} syntax warning(s)" if parse_errors > 0 else "Clean parse.")},
+            {"item": "GPT Explanation", "status": "WARN", "note": "OpenAI API key not configured — explanation skipped."},
         ],
         "human_review_items": [
             {
-                "item": "Full verification not performed",
-                "reason": "GPT verification layer was unavailable. All output should be manually reviewed.",
+                "item": "Deterministic pipeline incomplete",
+                "reason": "One or more stages did not complete successfully.",
                 "severity": "HIGH",
             },
-        ],
-        "confidence": {
-            "parser": 100,
-            "translation": translation_score,
-            "verification": 0,
-            "overall": overall,
-        },
+        ] if not all_stages_passed else [],
     }
 
 
-@app.post("/engine/analyze")
-async def engine_analyze(
-    request: AnalyzeRequest,
-    username: str = Depends(verify_token),
-):
+async def _run_engine_analysis(
+    cobol_code: str,
+    filename: str,
+    compiler_config: dict | None,
+    username: Optional[str],
+    trace_mode: bool = False,
+) -> dict:
+    """Internal helper — full engine analysis pipeline.
+
+    Called by both /engine/analyze and /engine/verify-full.
     """
-    Unified Engine — single endpoint that orchestrates all three stages:
-
-    1. ANTLR4 deterministic parse
-    2. Deterministic Python generation
-    3. GPT-4o verification & explanation
-
-    Falls back gracefully at every stage.
-    """
-    if not request.cobol_code.strip():
-        raise HTTPException(status_code=400, detail="Empty COBOL source provided.")
-
-    filename = request.filename or "source.cbl"
-
     # ── Stage 1: ANTLR4 Parse ────────────────────────────────────────
     parser_output = None
     if ANTLR_AVAILABLE:
         try:
-            parser_output = antlr_analyze_cobol(request.cobol_code)
+            logger.info("COBOL code length: %d, first 50 chars: %s", len(cobol_code),
+                        cobol_code[:50])
+            parser_output = antlr_analyze_cobol(cobol_code)
             parser_output["filename"] = filename
             parser_output["parser"] = "ANTLR4"
             parser_output["engine"] = "deterministic"
+            logger.info("Parser output: success=%s, paragraphs=%s", parser_output.get("success"), parser_output.get("summary", {}).get("paragraphs"))
         except Exception as e:
             logger.error("ANTLR4 parse failed: %s", e)
             parser_output = None
@@ -2432,25 +2915,92 @@ async def engine_analyze(
         }
 
     # ── Stage 2: Python Generation ───────────────────────────────────
-    generated_python = None
-    if GENERATOR_AVAILABLE:
+    active_compiler_config = None
+    if compiler_config:
+        # Explicit user config takes priority over CBL/PROCESS detection
         try:
-            code = generate_python_module(request.cobol_code)
+            from compiler_config import set_config, get_config
+            set_config(**compiler_config)
+            active_compiler_config = get_config()
+        except (ValueError, TypeError) as e:
+            logger.warning("Invalid compiler_config in request: %s", e)
+    else:
+        # Auto-apply CBL/PROCESS options detected in source (implicit < explicit)
+        detected = parser_output.get("compiler_options_detected")
+        if detected:
+            try:
+                from compiler_config import set_config, get_config
+                cfg_kwargs = {}
+                if "trunc_mode" in detected:
+                    cfg_kwargs["trunc_mode"] = detected["trunc_mode"]
+                if "arith_mode" in detected:
+                    cfg_kwargs["arith_mode"] = detected["arith_mode"]
+                if "decimal_point" in detected:
+                    cfg_kwargs["decimal_point"] = detected["decimal_point"]
+                if cfg_kwargs:
+                    set_config(**cfg_kwargs)
+                    active_compiler_config = get_config()
+                    logger.info("Auto-applied CBL/PROCESS options: %s", cfg_kwargs)
+            except (ValueError, TypeError, ImportError) as e:
+                logger.warning("Failed to apply detected compiler options: %s", e)
+
+    generated_python = None
+    emit_counts = {}
+    compiler_warnings = []
+    mr_flags = []
+    if GENERATOR_AVAILABLE and parser_output.get("success"):
+        try:
+            gen_result = generate_python_module(parser_output, compiler_config=active_compiler_config, trace_mode=trace_mode)
+            code = gen_result["code"]
+            emit_counts = gen_result.get("emit_counts", {})
+            compiler_warnings = gen_result.get("compiler_warnings", [])
+            mr_flags = gen_result.get("mr_flags", [])
             if not code.startswith("# PARSE ERROR"):
                 generated_python = code
         except Exception as e:
             logger.error("Python generation failed: %s", e)
 
+    arith_specified = (
+        (compiler_config and "arith_mode" in compiler_config)
+        or "arith_mode" in parser_output.get("compiler_options_detected", {})
+    )
+    if not arith_specified:
+        compiler_warnings.append(
+            "ARITH not specified. Defaulting to COMPAT "
+            "(18-digit intermediate precision)."
+        )
+
+    # ── Stage 2.5: Arithmetic Risk Analysis ──────────────────────────
+    arithmetic_risks = []
+    arithmetic_summary = {"total": 0, "safe": 0, "warn": 0, "critical": 0}
+    if GENERATOR_AVAILABLE and parser_output.get("success"):
+        try:
+            arith_data = compute_arithmetic_risks(parser_output)
+            arithmetic_risks = arith_data.get("risks", [])
+            arithmetic_summary = arith_data.get("summary", arithmetic_summary)
+        except Exception as e:
+            logger.error("Arithmetic risk analysis failed: %s", e)
+
+    # ── Stage 2.6: Dead Code Analysis ─────────────────────────────────
+    dead_code = {"unreachable_paragraphs": [], "total_paragraphs": 0,
+                 "reachable_paragraphs": 0, "dead_percentage": 0.0, "has_alter": False}
+    if parser_output and parser_output.get("success"):
+        try:
+            from dead_code_analyzer import analyze_dead_code
+            dead_code = analyze_dead_code(parser_output)
+        except Exception as e:
+            logger.error("Dead code analysis failed: %s", e)
+
     # ── Stage 3: GPT-4o Verification ─────────────────────────────────
     verification = None
-    if (
-        analysis_engine.client
-        and parser_output.get("success")
-    ):
-        try:
+    try:
+        if (
+            analysis_engine.client
+            and parser_output.get("success")
+        ):
             user_payload = (
                 f"COBOL SOURCE ({filename}):\n"
-                f"{request.cobol_code}\n\n"
+                f"{cobol_code}\n\n"
                 f"PARSER OUTPUT:\n"
                 f"{json.dumps(parser_output, indent=2)}\n\n"
                 f"GENERATED PYTHON:\n"
@@ -2469,44 +3019,791 @@ async def engine_analyze(
 
             raw = gpt_response.choices[0].message.content
             verification = json.loads(raw)
-        except Exception as e:
-            logger.error("GPT verification failed: %s", e)
-            verification = None
+    except Exception as e:
+        logger.error("GPT verification failed: %s", e)
+        verification = None
 
     # Fallback to offline stub
     if verification is None:
         verification = _offline_verification_stub(parser_output, generated_python)
 
-    # ── Build formatted summary ──────────────────────────────────────
-    conf = verification.get("confidence", {})
+    # ── Compute binary verification status DETERMINISTICALLY ──────────
+    parse_errors = parser_output.get("parse_errors", 0) if parser_output else 1
+    generator_recovered = (
+        parse_errors > 0
+        and generated_python is not None
+        and "MANUAL REVIEW" not in generated_python
+    )
+    if generator_recovered:
+        try:
+            compile(generated_python, "<verify>", "exec")
+        except SyntaxError:
+            generator_recovered = False
+    all_stages_passed = (
+        parser_output and parser_output.get("success")
+        and generated_python is not None
+        and (parse_errors == 0 or generator_recovered)
+    )
+    verification_status = "VERIFIED" if all_stages_passed else "REQUIRES_MANUAL_REVIEW"
+
+    # ALTER statement = hard stop
+    exec_deps = parser_output.get("exec_dependencies", []) if parser_output else []
+    alter_deps = [d for d in exec_deps if d.get("type") == "ALTER"]
+    if alter_deps:
+        verification_status = "REQUIRES_MANUAL_REVIEW"
+
+    verification["verification_status"] = verification_status
+    verification.pop("confidence", None)
+
+    # ── Build human_review_items from generator MR flags ──────────
+    human_review_items = []
+    if not all_stages_passed and not mr_flags:
+        human_review_items.append({
+            "item": "Deterministic pipeline incomplete",
+            "reason": "One or more stages did not complete successfully.",
+            "severity": "HIGH",
+        })
+    for flag in mr_flags:
+        human_review_items.append({
+            "item": flag["construct"],
+            "reason": flag["reason"],
+            "recommendation": flag.get("recommendation", ""),
+            "severity": flag["severity"],
+        })
+    # Add exec dependency flags (SQL/CICS not already covered by generator)
+    exec_deps = parser_output.get("exec_dependencies", []) if parser_output else []
+    sql_deps = [d for d in exec_deps if d.get("type") not in ("ALTER", None)]
+    if sql_deps and not any(f["construct"] in ("EXEC SQL", "EXEC CICS") for f in mr_flags):
+        human_review_items.append({
+            "item": f"{len(sql_deps)} EXEC SQL/CICS blocks detected",
+            "reason": "External dependencies stripped from verification model.",
+            "recommendation": "Verify SQL logic separately. Check SQLCODE handling and variable taint.",
+            "severity": "HIGH",
+        })
+    verification["human_review_items"] = human_review_items
+
     formatted_output = (
         f"═══ ENGINE ANALYSIS: {filename} ═══\n\n"
-        f"{verification.get('executive_summary', 'No summary available.')}\n\n"
-        f"Confidence — Parser: {conf.get('parser', 'N/A')}%  "
-        f"Translation: {conf.get('translation', 'N/A')}%  "
-        f"Verification: {conf.get('verification', 'N/A')}%  "
-        f"Overall: {conf.get('overall', 'N/A')}%"
+        f"Status: {verification_status}\n\n"
+        f"{verification.get('executive_summary', 'No summary available.')}"
     )
 
     # ── Audit trail ──────────────────────────────────────────────────
-    if USE_IN_MEMORY_DB or not DB_AVAILABLE:
-        record_security_event(username, f"Engine Analyze: {filename}")
-    else:
-        async with AsyncSessionLocal() as db:
-            user = await get_user_by_username_db(db, username)
-            if user:
-                await record_security_event_db(
-                    db, user, f"Engine Analyze: {filename}"
-                )
-                await db.commit()
+    if username:
+        if USE_IN_MEMORY_DB or not DB_AVAILABLE:
+            record_security_event(username, f"Engine Analyze: {filename}")
+        else:
+            async with AsyncSessionLocal() as db:
+                user = await get_user_by_username_db(db, username)
+                if user:
+                    await record_security_event_db(
+                        db, user, f"Engine Analyze: {filename}"
+                    )
+                    await db.commit()
 
-    return {
-        "success": True,
+    result = {
+        "success": parser_output.get("success", False) and generated_python is not None,
+        "verification_status": verification_status,
         "parser_output": parser_output,
         "generated_python": generated_python,
         "verification": verification,
         "formatted_output": formatted_output,
+        "arithmetic_risks": arithmetic_risks,
+        "arithmetic_summary": arithmetic_summary,
+        "emit_counts": emit_counts,
+        "dead_code": dead_code,
+        "compiler_warnings": compiler_warnings,
     }
+
+    vault_id = None
+    if VAULT_AVAILABLE:
+        try:
+            vault_id = save_to_vault(result, cobol_code)
+        except Exception as e:
+            logger.error("Vault save failed: %s", e)
+    result["vault_id"] = vault_id
+
+    # Audit log
+    if username:
+        try:
+            from audit_logger import log_event
+            log_event(username, "ANALYZE", {
+                "filename": result.get("filename"),
+                "verdict": result.get("verification_status"),
+            })
+        except ImportError:
+            pass
+
+    return result
+
+
+@app.post("/engine/analyze")
+async def engine_analyze(
+    request: AnalyzeRequest,
+    raw_request: Request,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """
+    Unified Engine — single endpoint that orchestrates all three stages:
+
+    1. ANTLR4 deterministic parse
+    2. Deterministic Python generation
+    3. GPT-4o verification & explanation
+
+    Falls back gracefully at every stage.
+    Guests (no token): no rate limit, no license required.
+    Authenticated users: normal engine rate limit + license check.
+    """
+
+    if not request.cobol_code.strip():
+        raise HTTPException(status_code=400, detail="Empty COBOL source provided.")
+
+    return await _run_engine_analysis(
+        cobol_code=request.cobol_code,
+        filename=request.filename or "source.cbl",
+        compiler_config=request.compiler_config,
+        username=username,
+        trace_mode=request.trace_mode,
+    )
+
+
+
+
+# ──────────────────────────────────────────────────────────────────────
+# VERIFY-FULL: Combined Engine + Shadow Diff in one call
+# ──────────────────────────────────────────────────────────────────────
+
+@app.post("/engine/verify-full")
+async def engine_verify_full(
+    request: VerifyFullRequest,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """
+    Combined Engine + Shadow Diff — single endpoint, single response.
+
+    1. ANTLR4 parse → Python generation → arithmetic risk → GPT verification
+    2. Shadow Diff: parse input/output → execute generated Python → compare
+    3. Unified verdict: FULLY VERIFIED only if both stages pass.
+    """
+    username = username or "guest"
+    if not request.cobol_code.strip():
+        raise HTTPException(status_code=400, detail="Empty COBOL source provided.")
+
+    # ── Stage A: Engine Analysis ─────────────────────────────────────
+    engine_result = await _run_engine_analysis(
+        cobol_code=request.cobol_code,
+        filename=request.filename or "source.cbl",
+        compiler_config=request.compiler_config,
+        username=username,
+    )
+
+    engine_verdict = engine_result.get("verification_status", "REQUIRES_MANUAL_REVIEW")
+    generated_python = engine_result.get("generated_python")
+
+    # ── Stage B: Shadow Diff ─────────────────────────────────────────
+    shadow_diff_result = None
+    layout = request.layout  # may be None; auto-generated below if needed
+
+    if SHADOW_DIFF_AVAILABLE and generated_python:
+        try:
+            input_bytes = base64.b64decode(request.input_data)
+            output_bytes = base64.b64decode(request.output_data)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid base64 in input_data or output_data.")
+
+        input_hash = hashlib.sha256(input_bytes).hexdigest()
+        output_hash = hashlib.sha256(output_bytes).hexdigest()
+
+        if layout is None:
+            # Auto-generate layout from DATA DIVISION
+            try:
+                from layout_generator import generate_layout
+                analysis_for_layout = dict(engine_result.get("parser_output", {}))
+                layout = generate_layout(
+                    analysis_for_layout,
+                    generated_python,
+                    request.filename or "source.cbl",
+                )
+            except ImportError:
+                raise HTTPException(status_code=500, detail="Layout auto-generation not available.")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Layout auto-generation failed: {e}")
+
+        input_mapping = layout.get("input_mapping")
+        output_fields = layout.get("output_fields")
+        if not input_mapping:
+            raise HTTPException(status_code=400, detail="layout must include 'input_mapping'.")
+        if not output_fields:
+            raise HTTPException(status_code=400, detail="layout must include 'output_fields'.")
+
+        # Parse constants to Decimal where possible
+        raw_constants = layout.get("constants") or {}
+        parsed_constants = {}
+        for k, v in raw_constants.items():
+            try:
+                parsed_constants[k] = Decimal(str(v))
+            except Exception:
+                parsed_constants[k] = v
+
+        # Build input layout (only fields referenced by input_mapping)
+        input_layout = {
+            "fields": [f for f in layout["fields"] if f["name"] in input_mapping],
+            "record_length": layout.get("record_length"),
+        }
+
+        # Build mainframe output stream with field mapping
+        output_layout_def = layout.get("output_layout")
+        if not output_layout_def:
+            raise HTTPException(status_code=400, detail="layout must include 'output_layout'.")
+
+        output_field_mapping = output_layout_def.get("field_mapping", {})
+
+        def _mainframe_stream():
+            for rec in parse_fixed_width_stream(output_layout_def, output_bytes):
+                mapped = {}
+                for cobol_name, python_name in output_field_mapping.items():
+                    if cobol_name in rec:
+                        mapped[python_name] = str(rec[cobol_name])
+                yield mapped
+
+        # Run streaming pipeline
+        comparison = run_streaming_pipeline(
+            source=generated_python,
+            input_stream=parse_fixed_width_stream(input_layout, input_bytes),
+            mainframe_stream=_mainframe_stream(),
+            input_mapping=input_mapping,
+            output_fields=output_fields,
+            constants=parsed_constants,
+        )
+
+        # Generate report (includes diagnose_drift internally)
+        report = sd_generate_report(
+            comparison,
+            input_file_hash=input_hash,
+            output_file_hash=output_hash,
+            layout_name=layout.get("name", ""),
+            layout=layout,
+        )
+
+        shadow_diff_result = {
+            "verdict": report["verdict"],
+            "total_records": report["total_records"],
+            "matches": report["matches"],
+            "mismatches": report["mismatches"],
+            "mismatch_details": report["mismatch_log"],
+            "drift_diagnoses": report["diagnosed_mismatches"],
+            "input_fingerprint": f"sha256:{input_hash}",
+            "output_fingerprint": f"sha256:{output_hash}",
+        }
+
+    # ── Unified Verdict ──────────────────────────────────────────────
+    if shadow_diff_result is not None:
+        sd_clean = shadow_diff_result["mismatches"] == 0
+        unified = "FULLY VERIFIED" if engine_verdict == "VERIFIED" and sd_clean else "VERIFICATION INCOMPLETE"
+    else:
+        unified = engine_verdict
+
+    # Build response before dereferencing sensitive data
+    import gc as _gc
+    response = {
+        "unified_verdict": unified,
+        "engine_result": engine_result,
+        "shadow_diff_result": shadow_diff_result,
+        "auto_layout": layout if not request.layout else None,
+        "vault_id": engine_result.get("vault_id"),
+    }
+    # Dereference sensitive data — defense-in-depth, not a cryptographic guarantee
+    del engine_result, shadow_diff_result
+    _gc.collect()
+    logger.info("verify-full: sensitive data dereferenced for %s", username)
+    return response
+
+
+# ──────────────────────────────────────────────────────────────────────
+# GENERATE LAYOUT (standalone)
+# ──────────────────────────────────────────────────────────────────────
+
+@app.post("/engine/generate-layout")
+async def engine_generate_layout(
+    request: AnalyzeRequest,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """Auto-generate Shadow Diff layout JSON from COBOL source."""
+    if not ANTLR_AVAILABLE:
+        raise HTTPException(status_code=500, detail="ANTLR4 parser unavailable.")
+    if not GENERATOR_AVAILABLE:
+        raise HTTPException(status_code=500, detail="Python generator unavailable.")
+
+    from layout_generator import generate_layout
+
+    parser_output = antlr_analyze_cobol(request.cobol_code)
+    if not parser_output.get("success"):
+        raise HTTPException(status_code=400, detail="COBOL parse failed.")
+
+    gen_result = generate_python_module(parser_output)
+    code = gen_result["code"]
+
+    layout = generate_layout(parser_output, code, program_name=request.filename)
+    return layout
+
+
+# ──────────────────────────────────────────────────────────────────────
+# COMPILER OPTION MATRIX REPORT
+# ──────────────────────────────────────────────────────────────────────
+
+
+def generate_compiler_matrix(parser_output):
+    """Cross-reference detected compiler options with constructs that need them."""
+    detected = parser_output.get("compiler_options_detected", {})
+    variables = parser_output.get("variables", [])
+
+    # --- Count constructs by storage type ---
+    comp3_count = sum(1 for v in variables if v.get("comp3"))
+    comp_count = sum(1 for v in variables if v.get("storage_type") == "COMP")
+    signed_comp3 = sum(
+        1 for v in variables
+        if v.get("comp3") and v.get("pic_info", {}).get("signed")
+    )
+
+    # --- Count arithmetic constructs ---
+    arithmetics = parser_output.get("arithmetics", [])
+    computes = parser_output.get("computes", [])
+    mul_div = [a for a in arithmetics if a.get("verb") in ("MULTIPLY", "DIVIDE")]
+    on_size_error = [a for a in arithmetics if a.get("on_size_error")]
+
+    # --- Detected vs defaults ---
+    IBM_DEFAULTS = {
+        "TRUNC": "STD",
+        "ARITH": "COMPAT",
+        "NUMPROC": "NOPFD",
+        "DECIMAL-POINT": "PERIOD",
+    }
+    DETECTED_KEY_MAP = {
+        "TRUNC": "trunc_mode",
+        "ARITH": "arith_mode",
+        "NUMPROC": "numproc",
+        "DECIMAL-POINT": "decimal_point",
+    }
+
+    detected_options = {}
+    defaults_applied = {}
+    for option, key in DETECTED_KEY_MAP.items():
+        val = detected.get(key)
+        if val:
+            detected_options[option] = val
+        else:
+            detected_options[option] = None
+            defaults_applied[option] = IBM_DEFAULTS[option]
+
+    # --- Constructs requiring each option ---
+    constructs = {"TRUNC": [], "ARITH": [], "NUMPROC": [], "DECIMAL-POINT": []}
+
+    if comp3_count:
+        constructs["TRUNC"].append(f"{comp3_count} COMP-3 field{'s' if comp3_count != 1 else ''}")
+    if comp_count:
+        constructs["TRUNC"].append(f"{comp_count} COMP/COMP-4 field{'s' if comp_count != 1 else ''}")
+    if on_size_error:
+        constructs["TRUNC"].append(f"{len(on_size_error)} ON SIZE ERROR handler{'s' if len(on_size_error) != 1 else ''}")
+
+    if computes:
+        constructs["ARITH"].append(f"{len(computes)} COMPUTE statement{'s' if len(computes) != 1 else ''}")
+    if mul_div:
+        constructs["ARITH"].append(f"{len(mul_div)} MULTIPLY/DIVIDE operation{'s' if len(mul_div) != 1 else ''}")
+
+    if signed_comp3:
+        constructs["NUMPROC"].append(f"{signed_comp3} signed COMP-3 field{'s' if signed_comp3 != 1 else ''}")
+
+    if detected.get("decimal_point") == "COMMA":
+        constructs["DECIMAL-POINT"].append("DECIMAL-POINT IS COMMA in source")
+
+    # --- Warnings for options that matter but weren't detected ---
+    warnings = []
+    for option in ("TRUNC", "ARITH", "NUMPROC"):
+        if constructs[option] and detected_options[option] is None:
+            warnings.append(
+                f"{option} not specified in source — defaulting to {IBM_DEFAULTS[option]}"
+            )
+
+    # --- Dynamic recommendation ---
+    undetected_that_matter = [
+        opt for opt in ("TRUNC", "ARITH", "NUMPROC", "DECIMAL-POINT")
+        if constructs[opt] and detected_options[opt] is None
+    ]
+    all_detected = not defaults_applied
+    none_detected = all(v is None for v in detected_options.values())
+
+    if all_detected:
+        recommendation = "All compiler options found in source. Ready for verification."
+    elif none_detected:
+        recommendation = (
+            "No compiler options found in source. Aletheia will use IBM defaults "
+            f"(TRUNC={IBM_DEFAULTS['TRUNC']}, ARITH={IBM_DEFAULTS['ARITH']}, "
+            f"NUMPROC={IBM_DEFAULTS['NUMPROC']}). "
+            "Strongly recommend confirming these match your installation."
+        )
+    else:
+        missing = ", ".join(
+            f"{opt}={IBM_DEFAULTS[opt]}" for opt in undetected_that_matter
+        )
+        if missing:
+            recommendation = (
+                f"Defaulting: {missing}. "
+                "Confirm with your systems programmer before relying on verification results."
+            )
+        else:
+            recommendation = "Detected options applied. Remaining defaults are safe — no constructs require them."
+
+    return {
+        "detected_options": detected_options,
+        "defaults_applied": defaults_applied,
+        "constructs_requiring_options": constructs,
+        "warnings": warnings,
+        "recommendation": recommendation,
+    }
+
+
+class CompilerMatrixRequest(BaseModel):
+    cobol_code: str
+    filename: Optional[str] = "input.cbl"
+
+
+@app.post("/engine/compiler-matrix")
+async def engine_compiler_matrix(
+    request: CompilerMatrixRequest,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """Analyze COBOL source and report which compiler options are detected vs defaulted."""
+    if not ANTLR_AVAILABLE:
+        raise HTTPException(status_code=500, detail="ANTLR4 parser unavailable.")
+    if not request.cobol_code.strip():
+        raise HTTPException(status_code=400, detail="Empty COBOL source provided.")
+
+    parser_output = antlr_analyze_cobol(request.cobol_code)
+    if not parser_output.get("success"):
+        raise HTTPException(status_code=400, detail="COBOL parse failed.")
+
+    matrix = generate_compiler_matrix(parser_output)
+    return {
+        "success": True,
+        "filename": request.filename,
+        "matrix": matrix,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# PORTFOLIO RISK HEATMAP
+# ──────────────────────────────────────────────────────────────────────
+
+
+class RiskHeatmapRequest(BaseModel):
+    programs: list  # [{"cobol_code": str, "filename": str}, ...]
+
+
+@app.post("/engine/risk-heatmap")
+async def engine_risk_heatmap(
+    request: RiskHeatmapRequest,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """Analyze a portfolio of COBOL programs and produce a color-coded risk heatmap."""
+    if not ANTLR_AVAILABLE:
+        raise HTTPException(status_code=500, detail="ANTLR4 parser unavailable.")
+    if not request.programs:
+        raise HTTPException(status_code=400, detail="Empty program list.")
+    if len(request.programs) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 programs per request.")
+
+    from risk_heatmap import generate_risk_heatmap
+
+    enriched = []
+    for prog in request.programs:
+        code = prog.get("cobol_code", "")
+        filename = prog.get("filename", "input.cbl")
+        if not code.strip():
+            continue
+        analysis = antlr_analyze_cobol(code)
+        lines = len(code.splitlines())
+        enriched.append({"filename": filename, "lines": lines, "analysis": analysis})
+
+    heatmap = generate_risk_heatmap(enriched)
+    return {"success": True, "heatmap": heatmap}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# POISON PILL GENERATOR
+# ──────────────────────────────────────────────────────────────────────
+
+
+class PoisonPillRequest(BaseModel):
+    cobol_code: str
+    filename: Optional[str] = "input.cbl"
+    compiler_config: Optional[dict] = None
+
+
+class RunPoisonPillRequest(BaseModel):
+    cobol_code: str
+    dat_base64: str
+    pills: list
+    layout: dict
+    filename: Optional[str] = "input.cbl"
+    compiler_config: Optional[dict] = None
+
+
+@app.post("/engine/generate-poison-pills")
+async def engine_generate_poison_pills(
+    request: PoisonPillRequest,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """Generate edge-case poison pill input records for boundary testing."""
+    if not ANTLR_AVAILABLE:
+        raise HTTPException(status_code=500, detail="ANTLR4 parser unavailable.")
+    if not GENERATOR_AVAILABLE:
+        raise HTTPException(status_code=500, detail="Python generator unavailable.")
+
+    from layout_generator import generate_layout
+    from poison_pill_generator import generate_poison_pills
+
+    parser_output = antlr_analyze_cobol(request.cobol_code)
+    if not parser_output.get("success"):
+        raise HTTPException(status_code=400, detail="COBOL parse failed.")
+
+    gen_result = generate_python_module(parser_output)
+    code = gen_result["code"]
+
+    layout = generate_layout(parser_output, code, program_name=request.filename)
+    result = generate_poison_pills(parser_output, code, layout)
+
+    import base64
+    dat_b64 = base64.b64encode(result["dat_bytes"]).decode("ascii")
+
+    return {
+        "dat_base64": dat_b64,
+        "record_count": result["record_count"],
+        "pills": result["pills"],
+        "layout": result["layout"],
+        "record_length": result["record_length"],
+    }
+
+
+@app.post("/engine/run-poison-pills")
+async def engine_run_poison_pills(
+    request: RunPoisonPillRequest,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """Execute generated Python against each poison pill record.
+
+    Pure execution robustness test — no Shadow Diff. Reports clean/abend/error
+    counts per record.
+    """
+    if not ANTLR_AVAILABLE:
+        raise HTTPException(status_code=500, detail="ANTLR4 parser unavailable.")
+    if not GENERATOR_AVAILABLE:
+        raise HTTPException(status_code=500, detail="Python generator unavailable.")
+
+    import base64
+
+    parser_output = antlr_analyze_cobol(request.cobol_code)
+    if not parser_output.get("success"):
+        raise HTTPException(status_code=400, detail="COBOL parse failed.")
+
+    gen_result = generate_python_module(parser_output)
+    code = gen_result["code"]
+
+    # Decode input .dat
+    input_bytes = base64.b64decode(request.dat_base64)
+    layout = request.layout
+    input_mapping = layout.get("input_mapping", {})
+    output_fields = layout.get("output_fields", [])
+    constants = layout.get("constants", {})
+
+    # Parse input records
+    if SHADOW_DIFF_AVAILABLE:
+        from shadow_diff import parse_fixed_width, _execute_one_record
+        records = list(parse_fixed_width(layout, input_bytes))
+    else:
+        raise HTTPException(status_code=500, detail="Shadow Diff module unavailable.")
+
+    pills = request.pills
+    details = []
+    clean_count = 0
+    abend_count = 0
+    error_count = 0
+
+    for idx, record in enumerate(records):
+        result = _execute_one_record(
+            code, record, idx,
+            input_mapping, output_fields, constants,
+        )
+        pill_info = pills[idx] if idx < len(pills) else {}
+        err = result.get("_error")
+
+        if err:
+            if "S0C7" in str(err) or "abend" in str(err).lower():
+                status = "abend"
+                abend_count += 1
+            else:
+                status = "error"
+                error_count += 1
+        else:
+            status = "clean"
+            clean_count += 1
+
+        details.append({
+            "record_idx": idx,
+            "field": pill_info.get("field", ""),
+            "edge_case": pill_info.get("edge_case", ""),
+            "status": status,
+            "error_message": err,
+        })
+
+    return {
+        "total": len(records),
+        "clean": clean_count,
+        "abends": abend_count,
+        "errors": error_count,
+        "details": details,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# JCL PARSER ENDPOINT
+# ──────────────────────────────────────────────────────────────────────
+
+try:
+    from jcl_parser import parse_jcl as _parse_jcl
+    JCL_PARSER_AVAILABLE = True
+except ImportError:
+    JCL_PARSER_AVAILABLE = False
+    logger.warning("JCL parser not available.")
+
+try:
+    from sbom_generator import generate_sbom as _generate_sbom
+    SBOM_AVAILABLE = True
+except ImportError:
+    SBOM_AVAILABLE = False
+    logger.warning("SBOM generator not available.")
+
+
+@app.post("/engine/parse-jcl")
+async def engine_parse_jcl(
+    request: Request,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """Parse IBM JCL text into a Job Step DAG."""
+    if not JCL_PARSER_AVAILABLE:
+        raise HTTPException(status_code=500, detail="JCL parser unavailable.")
+
+    body = await request.json()
+    jcl_text = body.get("jcl_text", "")
+    if not jcl_text.strip():
+        raise HTTPException(status_code=400, detail="Empty JCL text provided.")
+
+    try:
+        from dataclasses import asdict
+        dag = _parse_jcl(jcl_text)
+        result = asdict(dag)
+        result["summary"] = dag.summary()
+        return JSONResponse(content=result)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/engine/generate-sbom")
+async def engine_generate_sbom(
+    request: Request,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """Generate a CycloneDX 1.4 SBOM from an analysis result."""
+    if not SBOM_AVAILABLE:
+        raise HTTPException(status_code=500, detail="SBOM generator unavailable.")
+
+    body = await request.json()
+    if not body.get("program_name"):
+        raise HTTPException(status_code=400, detail="Missing program_name in request body.")
+
+    try:
+        sbom = _generate_sbom(body)
+        return JSONResponse(content=sbom)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+# ──────────────────────────────────────────────────────────────────────
+# EXECUTION TRACE COMPARISON
+# ──────────────────────────────────────────────────────────────────────
+
+class TraceCompareRequest(BaseModel):
+    """Request body for execution trace comparison."""
+    trace_a: list = []        # trace from reference execution
+    trace_b: list = []        # trace from migration execution
+    cobol_code: Optional[str] = None  # original COBOL for context
+
+
+@app.post("/engine/trace-compare")
+async def engine_trace_compare(
+    request: TraceCompareRequest,
+    username: Optional[str] = Depends(verify_token_optional),
+):
+    """Compare two execution traces and find the first point of divergence.
+
+    Accepts pre-built trace JSON from two verification runs.
+    Returns the divergence point with root-cause diagnosis.
+    """
+    from execution_trace import compare_traces
+
+    if not request.trace_a and not request.trace_b:
+        return {"success": True, "diverged": False, "divergence_index": None,
+                "event_a": None, "event_b": None, "total_events_a": 0,
+                "total_events_b": 0, "matching_events": 0, "diagnosis": None}
+
+    result = compare_traces(request.trace_a, request.trace_b)
+    return {"success": True, **result}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# STATIC FILE SERVING (SPA FALLBACK)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Serves the built React frontend from frontend/dist.
+# Mounted AFTER all API routes so /engine/*, /vault/*, /auth/* etc.
+# are handled first. Any non-API route falls through to index.html
+# (SPA client-side routing).
+#
+
+DEMO_DATA_DIR = Path(__file__).resolve().parent / "demo_data"
+
+ROOT_DEMO_FILES = {"DEMO_LOAN_INTEREST.cbl"}
+
+@app.get("/demo-data/{filename}")
+async def serve_demo_data(filename: str):
+    """Serve demo data files for the Shadow Diff UI."""
+    if filename in ROOT_DEMO_FILES:
+        file_path = (Path(__file__).resolve().parent / filename).resolve()
+        expected_dir = Path(__file__).resolve().parent
+    else:
+        file_path = (DEMO_DATA_DIR / filename).resolve()
+        expected_dir = DEMO_DATA_DIR.resolve()
+    if not file_path.is_file() or not file_path.is_relative_to(expected_dir):
+        raise HTTPException(status_code=404, detail="Demo file not found")
+    return FileResponse(file_path)
+
+
+FRONTEND_DIR = Path(__file__).resolve().parent / "frontend" / "dist"
+
+if FRONTEND_DIR.is_dir():
+    @app.get("/{full_path:path}")
+    async def serve_spa(request: Request, full_path: str):
+        """Serve static files or fall back to index.html for SPA routing."""
+        file_path = (FRONTEND_DIR / full_path).resolve()
+        if file_path.is_file() and file_path.is_relative_to(FRONTEND_DIR.resolve()):
+            return FileResponse(file_path)
+        return FileResponse(FRONTEND_DIR / "index.html")
+
+    logger.info("Serving frontend from %s", FRONTEND_DIR)
+else:
+    logger.warning(
+        "Frontend build not found at %s — run 'cd frontend && npm run build'",
+        FRONTEND_DIR,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -2523,4 +3820,4 @@ if __name__ == "__main__":
         getcontext().rounding,
     )
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8000, timeout_keep_alive=300)

@@ -1,0 +1,14 @@
+{
+  "description": "Sequential ADD accumulation — sums 4 decimal fields",
+  "category": "precision",
+  "inputs": {
+    "WS-ITEM1": "010.00",
+    "WS-ITEM2": "020.50",
+    "WS-ITEM3": "030.75",
+    "WS-ITEM4": "005.25"
+  },
+  "expected_outputs": {
+    "WS-TOTAL": "66.50"
+  },
+  "notes": "ADD each item TO WS-TOTAL. Sum = 10.00+20.50+30.75+5.25 = 66.50."
+}

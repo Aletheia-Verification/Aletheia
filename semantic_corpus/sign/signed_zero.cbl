@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. SIGNED-ZERO.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A          PIC S9(5)V99.
+       01  WS-B          PIC S9(5)V99.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           SUBTRACT WS-A FROM WS-A GIVING WS-B.
+           STOP RUN.

@@ -1,0 +1,16 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. EVAL-TEST.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-GRADE  PIC X VALUE 'B'.
+       01 WS-MSG    PIC X(20).
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           EVALUATE WS-GRADE
+               WHEN 'A' MOVE 'EXCELLENT' TO WS-MSG
+               WHEN 'B' MOVE 'GOOD' TO WS-MSG
+               WHEN 'C' MOVE 'AVERAGE' TO WS-MSG
+               WHEN OTHER MOVE 'UNKNOWN' TO WS-MSG
+           END-EVALUATE.
+           DISPLAY WS-MSG.
+           STOP RUN.

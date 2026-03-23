@@ -1,0 +1,9 @@
+{
+  "description": "OCCURS subscript in COMPUTE expression — sum three table elements",
+  "category": "precision",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "0.1000"
+  },
+  "notes": "WS-RATE(1)=0.05 + WS-RATE(2)=0.03 + WS-RATE(3)=0.02 = 0.1000. Tests OCCURS subscript resolution in COMPUTE."
+}

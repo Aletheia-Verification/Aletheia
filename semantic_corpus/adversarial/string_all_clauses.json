@@ -1,0 +1,11 @@
+{
+  "description": "STRING with DELIMITED BY SIZE + POINTER + ON OVERFLOW + NOT ON OVERFLOW",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "JOHN, SMITH",
+    "WS-PTR": "12",
+    "WS-OVERFLOW": "N"
+  },
+  "notes": "STRING concatenates 'JOHN' (delimited by double-space, so takes 'JOHN'), ', ' (by SIZE = 2 chars), 'SMITH' (delimited by double-space, so takes 'SMITH'). Result: 'JOHN, SMITH' = 11 chars. Pointer advances from 1 to 12. No overflow since 11 < 20. The POINTER and OVERFLOW clauses are flagged MR per support matrix — STRING with POINTER/OVERFLOW is a MR case. WS-RESULT trailing spaces depend on how engine handles partial fill."
+}

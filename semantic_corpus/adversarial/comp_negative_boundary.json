@@ -1,0 +1,9 @@
+{
+  "description": "COMP PIC S9(4) stores -9999: verify sign preservation at negative boundary",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "-9999"
+  },
+  "notes": "COMP PIC S9(4) range is -9999 to 9999 under TRUNC(STD). MOVE -9999 should preserve the sign. Aletheia uses Decimal so sign is preserved naturally."
+}

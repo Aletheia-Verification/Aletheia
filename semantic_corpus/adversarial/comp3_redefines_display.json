@@ -1,0 +1,9 @@
+{
+  "description": "REDEFINES across USAGE types: DISPLAY overlay on COMP-3 — engine uses CobolMemoryRegion byte-backed model",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "12345"
+  },
+  "notes": "REDEFINES across USAGE types (DISPLAY over COMP-3) requires byte-level reinterpretation. Engine creates CobolMemoryRegion with CobolFieldProxy — base variable MOVE works correctly but overlay access would produce byte-reinterpreted (garbled) data. This test only uses the base variable. GAP: cross-USAGE REDEFINES overlay variable names get mangled (e.g. WS-RAW becomes WS-RAWREDEFINESWS-PACKED), causing NameError if referenced."
+}

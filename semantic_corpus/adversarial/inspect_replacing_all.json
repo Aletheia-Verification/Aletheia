@@ -1,0 +1,11 @@
+{
+  "description": "INSPECT REPLACING ALL — replaces every occurrence",
+  "category": "adversarial",
+  "inputs": {
+    "WS-STR": "BANANA"
+  },
+  "expected_outputs": {
+    "WS-STR": "BXNXNX"
+  },
+  "notes": "Engine emits ws_str = ws_str.replace('A', 'X'). Replaces all 3 'A' chars in 'BANANA'. IBM behavior identical."
+}

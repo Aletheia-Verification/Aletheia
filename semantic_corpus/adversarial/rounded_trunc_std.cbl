@@ -1,0 +1,10 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. ROUNDED-STD.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A          PIC 9V999.
+       01  WS-B          PIC 9V99.
+       PROCEDURE DIVISION.
+       0000-MAIN.
+           ADD WS-A TO WS-B ROUNDED.
+           STOP RUN.

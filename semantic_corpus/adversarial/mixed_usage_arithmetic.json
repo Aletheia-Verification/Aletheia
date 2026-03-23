@@ -1,0 +1,9 @@
+{
+  "description": "Mixed USAGE arithmetic: ADD DISPLAY + COMP TO COMP-3 → correct cross-type result",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "600"
+  },
+  "notes": "100 (DISPLAY) + 300 (COMP) + 200 (COMP-3) = 600. VALUE clauses now applied correctly, all USAGE types convert to Decimal for arithmetic."
+}

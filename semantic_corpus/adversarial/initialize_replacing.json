@@ -1,0 +1,11 @@
+{
+  "description": "INITIALIZE REPLACING NUMERIC DATA BY 99: only numeric children should get replaced.",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-NAME": " ",
+    "WS-AMOUNT": "0.00",
+    "WS-CODE": " "
+  },
+  "notes": "IBM gap: INITIALIZE REPLACING NUMERIC DATA BY 99 should set WS-AMOUNT to 99.00. Engine does not parse the REPLACING clause on INITIALIZE (cobol_analyzer_api does not capture it). Falls back to plain INITIALIZE: numeric=0, alpha=SPACES. WS-AMOUNT is 0.00 instead of IBM's 99.00. String vars get single space (same gap as initialize_group)."
+}

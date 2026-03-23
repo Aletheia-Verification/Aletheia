@@ -1,0 +1,12 @@
+{
+  "description": "SUBTRACT 1000 FROM unsigned PIC 9(3): result -500 overflows, SIZE ERROR fires",
+  "category": "adversarial",
+  "inputs": {
+    "WS-A": "1000"
+  },
+  "expected_outputs": {
+    "WS-B": "500",
+    "WS-FLAG": "Y"
+  },
+  "notes": "500-1000=-500 overflows unsigned PIC 9(3). ON SIZE ERROR fires, WS-B unchanged at 500, FLAG='Y'."
+}

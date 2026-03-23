@@ -1,0 +1,10 @@
+{
+  "description": "TRUNC(STD) truncates COMP PIC 9(4) to 4 digits: 99999 mod 10000 = 9999",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "9999"
+  },
+  "trunc_mode": "STD",
+  "notes": "TRUNC(STD) applies PIC-based truncation to COMP fields. 99999 stored in PIC 9(4) COMP becomes 9999 (mod 10^4)."
+}

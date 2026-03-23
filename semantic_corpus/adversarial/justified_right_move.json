@@ -1,0 +1,10 @@
+{
+  "description": "JUSTIFIED RIGHT: MOVE short literal to right-justified field, verify padding",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-FIELD": "   AB",
+    "WS-OUT": "   AB"
+  },
+  "notes": "IBM: JUSTIFIED RIGHT causes right-alignment with left space-padding. Aletheia: detects JUSTIFIED RIGHT clause and emits .rjust() instead of .ljust(). Both WS-FIELD and WS-OUT contain '   AB' (3 spaces + AB). Engine handles this correctly."
+}

@@ -1,0 +1,12 @@
+{
+  "description": "DECIMAL-POINT IS COMMA: COMPUTE addition with comma-delimited inputs",
+  "category": "decimal_point",
+  "inputs": {
+    "WS-A": "1234.56",
+    "WS-B": "7890.12"
+  },
+  "expected_outputs": {
+    "WS-RESULT": "9124.68"
+  },
+  "notes": "SPECIAL-NAMES DECIMAL-POINT IS COMMA. Preprocessor swaps commas to periods before ANTLR. 1234.56 + 7890.12 = 9124.68."
+}

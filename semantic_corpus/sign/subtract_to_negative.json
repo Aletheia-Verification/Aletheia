@@ -1,0 +1,12 @@
+{
+  "description": "SUBTRACT creating negative result in signed field",
+  "category": "sign",
+  "inputs": {
+    "WS-BALANCE": "100.00",
+    "WS-DEBIT": "250.00"
+  },
+  "expected_outputs": {
+    "WS-BALANCE": "-150.00"
+  },
+  "notes": "100.00 - 250.00 = -150.00. PIC S9(5)V99 is signed, so negative values are preserved."
+}

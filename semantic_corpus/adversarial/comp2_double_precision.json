@@ -1,0 +1,9 @@
+{
+  "description": "COMP-2 IEEE 754 double-precision: 15-digit + 2-decimal value preserved through float round-trip",
+  "category": "adversarial",
+  "inputs": {},
+  "expected_outputs": {
+    "WS-RESULT": "123456789012345.67"
+  },
+  "notes": "COMP-2 double-precision (~15 significant digits) stores 123456789012345.67 without precision loss at this scale. Engine uses PIC clause with COMP-2 (non-standard but functional). IBM COMP-2 has no PIC — uses raw 8-byte IEEE double."
+}

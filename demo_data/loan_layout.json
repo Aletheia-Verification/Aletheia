@@ -1,0 +1,113 @@
+{
+  "name": "DEMO_LOAN_INTEREST",
+  "fields": [
+    {
+      "name": "ACCOUNT-NUM",
+      "start": 0,
+      "length": 10,
+      "type": "string"
+    },
+    {
+      "name": "PRINCIPAL-BAL",
+      "start": 10,
+      "length": 12,
+      "type": "decimal",
+      "decimals": 2
+    },
+    {
+      "name": "ANNUAL-RATE",
+      "start": 22,
+      "length": 10,
+      "type": "decimal",
+      "decimals": 6
+    },
+    {
+      "name": "DAYS-OVERDUE",
+      "start": 32,
+      "length": 3,
+      "type": "integer"
+    },
+    {
+      "name": "VIP-FLAG",
+      "start": 35,
+      "length": 1,
+      "type": "string"
+    }
+  ],
+  "record_length": null,
+  "input_mapping": {
+    "ACCOUNT-NUM": "ws_account_num",
+    "PRINCIPAL-BAL": "ws_principal_bal",
+    "ANNUAL-RATE": "ws_annual_rate",
+    "DAYS-OVERDUE": "ws_days_overdue",
+    "VIP-FLAG": "ws_vip_flag"
+  },
+  "output_fields": [
+    "ws_accrued_int",
+    "ws_daily_rate",
+    "ws_daily_interest",
+    "ws_temp_amount",
+    "ws_penalty_amount",
+    "ws_rate_discount"
+  ],
+  "constants": {
+    "ws_days_in_year": "365",
+    "ws_grace_period": "15",
+    "ws_max_penalty_pct": "0.05"
+  },
+  "output_layout": {
+    "fields": [
+      {
+        "name": "ACCRUED-INT",
+        "start": 0,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "DAILY-RATE",
+        "start": 40,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 8
+      },
+      {
+        "name": "DAILY-INTEREST",
+        "start": 80,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "TEMP-AMOUNT",
+        "start": 120,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 4
+      },
+      {
+        "name": "PENALTY-AMOUNT",
+        "start": 160,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 2
+      },
+      {
+        "name": "RATE-DISCOUNT",
+        "start": 200,
+        "length": 40,
+        "type": "decimal",
+        "decimals": 4
+      }
+    ],
+    "record_length": null,
+    "field_mapping": {
+      "ACCRUED-INT": "ws_accrued_int",
+      "DAILY-RATE": "ws_daily_rate",
+      "DAILY-INTEREST": "ws_daily_interest",
+      "TEMP-AMOUNT": "ws_temp_amount",
+      "PENALTY-AMOUNT": "ws_penalty_amount",
+      "RATE-DISCOUNT": "ws_rate_discount"
+    }
+  }
+}
